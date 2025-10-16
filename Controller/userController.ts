@@ -5,6 +5,7 @@ import { updateSchema } from "../Validation/userValidation.ts";
 import { updateUser } from "../Service/updateService.ts";
 import { sendEmail } from "../Utils/sendEmail.ts";
 import jwt from "jsonwebtoken";
+import { createauditlog } from "../Utils/auditHelper.ts";
 
 
 export const getAllUsers = async(req:Request,res:Response)=>{
@@ -15,6 +16,18 @@ export const getAllUsers = async(req:Request,res:Response)=>{
         order: [["createdAt", "DESC"]],
       
     });
+
+    const userId = (req as any).user?.id;
+    if(!userId) return res.status(401).json({message:"Unauthorized"});
+
+    await createauditlog(
+      req.user.id,
+      "GET_ALL_USERS",
+      "User",
+      0,
+      `View User List`
+
+    )
     
      console.log(" Users fetched successfully:", users.length);
     res.json(users);
@@ -36,16 +49,29 @@ export const update=async(req:Request,res:Response)=>{
   const id = Number(req.params.id);
 
   const user = await updateUser(id,{username,email,phoneno, photo})
- console.log("data",user);
+// console.log("data",user);
   if(!user)
   {
     console.log("user not found");
-  }
-  res.json({message:"updated successfully",user});
+  }  
+
+  await createauditlog(
+    user.id,
+    "Update_User",
+    "User",
+    user.id,
+    `Update User ${username}`
+
+
+  )
+
+
+  res.status(200).json({message:"updated successfully",user});
   }
   catch(e)
   {
-    res.json({message:"did not update",e})
+    console.error("Error updating user:", e);
+    res.status(500).json({message:"did not update",e})
 
   }
 
@@ -55,6 +81,7 @@ export const update=async(req:Request,res:Response)=>{
 export const deleteUser = async(req:Request,res:Response)=>{
 try{
   const id=Number(req.params.id);
+  const {username}= req.body;
 
   const user = await User.findByPk(id);
   if(!user)
@@ -62,6 +89,16 @@ try{
     return res.status(404).json({message:"User not found"});
   }
   await user.destroy();
+
+  await createauditlog(
+    user.id,
+    "Delete_User",
+    "User",
+    user.id,
+    `Delete User ${username}`
+
+
+  )
   res.json({message:"User deleted successsfuly"});
 
 }catch(e)
@@ -84,14 +121,7 @@ export const forgetpassword = async(req:Request,res:Response)=>{
       id:number,username:string,password:string,email:string
     };
 
-    // }
-    //  const userData = user?.get() as { 
-    //   id: number, username: string, password: string,phoneno:number, email:string,photo:string,isActive:string
-    // };
-
-    
-
-    const token  = jwt.sign({id:userData.id,username:userData.username,email:userData.email},process.env.SECRET_KEY!,{expiresIn:"1m"});
+    const token  = jwt.sign({id:userData.id,username:userData.username,email:userData.email},process.env.JWT_SECRET!,{expiresIn:"1m"});
 
     const resetLink = `https://adminpanel.com/reset-password/${token}`;
 

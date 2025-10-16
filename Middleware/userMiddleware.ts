@@ -40,8 +40,11 @@ export const authenticate = (
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ message: "No token provided" });
 
+    console.log("req.headers.authorization",req.headers.authorization);
     const secret = process.env.JWT_SECRET;
     if (!secret) throw new Error("JWT_SECRET is not defined");
+
+    console.log( "process.env.JWT_SECRET", process.env.JWT_SECRET);
 
     const decoded = jwt.verify(token, secret) as { id: number };
     req.user = decoded; // now allowed by TS

@@ -7,7 +7,8 @@ import jwt from "jsonwebtoken";
 import { updateUser } from "../Service/updateService.ts";
 import { updateSchema } from "../Validation/userValidation.ts";
 import { sendEmail } from "../Utils/sendEmail.ts";
-
+import { createauditlog } from "../Utils/auditHelper.ts";
+import { Permission } from "../Model/permission.ts";
 
 // export const register = async (req: Request, res: Response) => {
 //   try {
@@ -126,14 +127,13 @@ import { sendEmail } from "../Utils/sendEmail.ts";
 // };
 
 
-
-
 export const register = async (req: Request, res: Response) => {
   try {
     // Validate input
     await updateSchema.validate(req.body, { abortEarly: false });
 
-    const { username, email, password, roles, phoneno, photo, isActive } = req.body;
+    const { username, email, password, phoneno, photo, isActive } = req.body;
+    let{roles} = req.body;
 
     // Check required fields
     if (!username || !email || !password || !phoneno || !photo || isActive === undefined) {
@@ -174,12 +174,28 @@ if (!roleRecords || roleRecords.length === 0) {
 }
 
 // Assign roles safely
+
 await user.addRoles(roleRecords.map(r => r.id)); // safer than setRoles for new users
 
     // Fetch user with roles
     const userWithRoles = await User.findByPk(user.id, {
       include: [{ model: Role, as: "roles" }],
     });
+
+   // roles is in string thats why roles.join(", ") will return in array that why we have chnaged it roles in array 
+   if(!Array.isArray(roles))
+   {
+    roles = roles ? [roles] :[];
+
+   }
+
+    await createauditlog(
+      user.id,
+      "CREATE_USER",
+      "User",
+      user.id,
+      `User '${username}' registered with roles. `
+    )
 
       const userData = user?.get() as {
       id: number,username: string,password: string,email:string,phoneno:string,photo:string,isActive:string
@@ -194,7 +210,7 @@ await user.addRoles(roleRecords.map(r => r.id)); // safer than setRoles for new 
         isActive: userData.isActive,
         roles: userWithRoles?.roles.map(r => r.role_name) || [],
       },
-      process.env.SECRET_KEY!,
+      process.env.JWT_SECRET!,
       { expiresIn: "8h" }
     );
 
@@ -222,9 +238,17 @@ export const logincontroller = async (req: Request, res: Response) => {
         {
           model: Role,
           as: "roles",
+          include:[
+            {
+              model:Permission,
+              as:"permissions"
+
+            }
+          ]
         },
       ],
     });
+
     if (!user)
       return res
         .status(404)
@@ -262,9 +286,26 @@ export const logincontroller = async (req: Request, res: Response) => {
 
     const token = jwt.sign(
       { id: userData.id, username: userData.username },
-      process.env.SECRET_KEY!,
+      process.env.JWT_SECRET!,
       { expiresIn: "1h" }
     );
+
+    // await createauditlog({
+    //   userId:user.id,
+    //   action:"User logged in",
+    //   entity:"User",
+    //   entityId:user.id,
+    //   detail: `User ${username} logged in`
+    // }
+    // )
+    await createauditlog(
+      user.id,
+      "User logged in",
+      "User",
+      user.id,
+      `User ${username} logged in`
+    )
+   
 
     return res.status(200).json({
       message: "Login successfully",
