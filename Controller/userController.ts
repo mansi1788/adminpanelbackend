@@ -6,16 +6,38 @@ import { updateUser } from "../Service/updateService.ts";
 import { sendEmail } from "../Utils/sendEmail.ts";
 import jwt from "jsonwebtoken";
 import { createauditlog } from "../Utils/auditHelper.ts";
+import { Op, where } from "sequelize";
 
 
 export const getAllUsers = async(req:Request,res:Response)=>{
   console.log("Inside get controllerssssssss")
+
   try{
+    //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
+    const {username, email,role,phoneno }=req.query;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string)|| 10;
+    const offset = (page-1) * limit;
+
+
+
+    const whereclause:any={};
+    if(username) whereclause.username={[Op.like]: `%${username}%`};
+    if(email) whereclause.email={[Op.like]: `%${email}%`};
+    if(role) whereclause.role = {[Op.like]: `%${role}%`};
+    if(phoneno) whereclause.phoneno = {[Op.like]: `%${phoneno}%`};
+
+    const totalUsers = await User.count({where:whereclause});
+
+
     const users = await User.findAll({
+      where:Object.keys(whereclause).length ? whereclause:undefined,
       include:[{model:Role,as:"roles"}],
         order: [["createdAt", "DESC"]],
-      
+        limit,
+        offset
     });
+
 
     const userId = (req as any).user?.id;
     if(!userId) return res.status(401).json({message:"Unauthorized"});
@@ -26,11 +48,23 @@ export const getAllUsers = async(req:Request,res:Response)=>{
       "User",
       0,
       `View User List`
-
     )
+    const totalPages= Math.ceil(totalUsers/limit);
+
+    const nextPage = page < totalPages?page+1:null ;
+    const prevPage = page < totalPages?page-1:null ; 
+     
     
      console.log(" Users fetched successfully:", users.length);
-    res.json(users);
+    res.status(200).json({
+      users,
+      totalUsers,
+      nextPage,
+      prevPage,
+      totalPages:Math.ceil(totalUsers/limit),
+      currentPage:page,
+
+    });
 
   }catch(e){
      console.error(" Error in getAllUsers---------------------------------------------------------:", e);
@@ -40,11 +74,13 @@ export const getAllUsers = async(req:Request,res:Response)=>{
 }
 
 
-export const update=async(req:Request,res:Response)=>{
+
+export const update = async(req:Request,res:Response)=>{
 
   await updateSchema.validate(req.body,{abortEarly:false})
 
   try{
+
   const{username, email, phoneno, photo}=req.body;
   const id = Number(req.params.id);
 

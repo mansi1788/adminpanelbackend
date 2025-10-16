@@ -6,6 +6,7 @@ import { UserRole } from "../Model/userRole.ts";
 
 
 export const searchcontroller=async(req:Request,res:Response)=>{
+
     try{
     const {username}=req.body;
 
@@ -90,7 +91,7 @@ catch(e)
 export const isActivecontroller = async(req:Request,res:Response)=>{
     try{
     const{isActive} = req.body;
-    const active = await User.findAll({where:{isActive}})
+    const active = await User.findAll({ where:{isActive} })
 
     if(!active)
     {
@@ -102,5 +103,4 @@ catch(e)
 {
     res.status(500).json({message:"Error in finding active users"})
 }
-
 }
