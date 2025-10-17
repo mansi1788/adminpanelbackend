@@ -10,133 +10,16 @@ import { sendEmail } from "../Utils/sendEmail.ts";
 import { createauditlog } from "../Utils/auditHelper.ts";
 import { Permission } from "../Model/permission.ts";
 
-// export const register = async (req: Request, res: Response) => {
-//   try {
-
-//     await updateSchema.validate(req.body,{abortEarly:false});
-//     // user or client is passing asking
-//     const { username, email, password, roles ,phoneno,photo,isActive } = req.body;
-//  //console.log("phoneno-----------------------",phoneno);
-//     // All fields are required
-
-//     if (!username || !email || !password|| !phoneno|| !photo || isActive === undefined)
-//       return res.status(400).json({ message: "All fields are required" });
-
-
-//     //USER ALREADY EXIST
-//     const existingUser = await User.findOne({ where: { email } });
-//     if (existingUser) {
-//       return res.status(400).json({ message: "User already exist" });
-//     }
-
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-// //create user
-//     const user = await User.create({
-//       username,
-//       email,
-//       password: hashedPassword,
-//      phoneno ,
-//      photo,
-//      isActive:Boolean(isActive)
-     
-//     });
-//    // console.log("req.body:", req.body);
-
-
-// // console.log("photo:", req.body.photo);
-//    // console.log("phoneno--------------------------------------------------",user);
-
-
-//   //  const userId: any = user.id; 
-//   //   const userWithRoles = await User.findByPk(userId, {
-//   //     include: [{ model: Role, as: "roles" }],
-//   //   });
-
-
-//   //   if (roles.length) {
-//   //     const foundRoles = await Role.findAll({
-//   //       where: { role_name: roles },
-//   //     });
-
-
-//   //     await Promise.all(
-//   //       foundRoles.map((r) =>
-//   //         UserRole.create({ userId: user.id, roleId: r.id })
-//   //       )
-//   //     );
-//   //   } 
-//   //   else 
-//   //   {
-
-//   //     const defaultRoles = await Role.findOne({ where: { role_name: "user" } });
-//   //     if (defaultRoles && defaultRoles.id) {
-//   //       await UserRole.create({ userId: user.id, roleId: defaultRoles.id });
-//   //       console.log("roleId",defaultRoles.id );
-       
-//   //     }
-//       // else{
-
-//         let roleRecords;
-//         if(roles && roles.length >0)
-//         {
-//           roleRecords = await Role.findAll({where:{role_name:roles}});
-
-//         }else{
-//           const defaultRole = await Role.findOne({where:{role_name:"user"}})
-//           if(!defaultRole) return res.status(500).json({message:"default role user not found"});
-//           roleRecords = [defaultRole];
-//         }
-
-//         await user.setRoles(roleRecords.map(r=>r.id));
-
-//         const userWithRoles = await User.findAndCountAll(user.id,{
-//           include:[{model:Role, as:"roles"}],
-//         });
-
-
-
-//           return res.status(500).json({ message: "Default role 'user' not found" });
-//      // }
-       
-    
-   
-
-
-
-//     const userData = user?.get() as { 
-//       id: number, username: string, password: string,phoneno:number, email:string,photo:string,isActive:string
-//     };
-
-    
-//     const token = jwt.sign(
-//       { id: userData.id, username: userData.username,email: userData.email,
-//         phoneno: userData.phoneno,
-//         photo: userData.photo,
-//         isActive: userData.isActive,
-//         roles: []  },process.env.SECRET_KEY!,{ expiresIn: "8h" }
-//     );
-//  console.log("phoneno--------------------------------------------------",user);
-//      //console.log("phoneno-----------------------",phoneno);
-    
-//     res.status(201).json({ message: "User registered successfully",token,user: userWithRoles});
-//   } catch (e) {
-//     res.status(500).json({ message: "Server error", e });
-//     console.log(e);
-//   }
-// };
-
-
 export const register = async (req: Request, res: Response) => {
   try {
     // Validate input
     await updateSchema.validate(req.body, { abortEarly: false });
 
-    const { username, email, password, phoneno, photo, isActive } = req.body;
+    const { firstname,lastname, email, password, phoneno, photo, isActive } = req.body;
     let{roles} = req.body;
 
     // Check required fields
-    if (!username || !email || !password || !phoneno || !photo || isActive === undefined) {
+    if (!firstname ||!lastname || !email || !password || !phoneno || !photo || isActive === undefined) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
@@ -149,7 +32,8 @@ export const register = async (req: Request, res: Response) => {
 
     // Create user
     const user = await User.create({
-      username,
+      firstname,
+      lastname,
       email,
       password: hashedPassword,
       phoneno,
@@ -194,16 +78,17 @@ await user.addRoles(roleRecords.map(r => r.id)); // safer than setRoles for new 
       "CREATE_USER",
       "User",
       user.id,
-      `User '${username}' registered with roles. `
+      `User '${firstname} ${lastname}' registered with roles. `
     )
 
       const userData = user?.get() as {
-      id: number,username: string,password: string,email:string,phoneno:string,photo:string,isActive:string
+      id: number,firstname: string,lastname:string,password: string,email:string,phoneno:string,photo:string,isActive:string
     };
     const token = jwt.sign(
       {
         id: userData.id,
-        username: userData.username,
+        firstname:userData.firstname,
+        lastname:userData.lastname,
         email: userData.email,
         phoneno: userData.phoneno,
         photo: userData.photo,
@@ -229,11 +114,11 @@ export const logincontroller = async (req: Request, res: Response) => {
 
   try {
 
-    const { username, password } = req.body;
+    const { firstname,lastname, password } = req.body;
 
     const user = await User.findOne({
-      where: { username },
-      attributes: ["id", "username", "password"],
+      where: { firstname,lastname },
+      attributes: ["id", "firstname","lastname", "password"],
       include: [
         {
           model: Role,
@@ -252,11 +137,12 @@ export const logincontroller = async (req: Request, res: Response) => {
     if (!user)
       return res
         .status(404)
-        .json({ message: "Username and password not found" });
+        .json({ message: "Name and password not found" });
 
     const userData = user?.get() as {
       id: number;
-      username: string;
+      firstname: string;
+      lastname:string;
       password: string;
     };
 
@@ -282,10 +168,10 @@ export const logincontroller = async (req: Request, res: Response) => {
     if (!isMatch)
       return res
         .status(400)
-        .json({ message: "Username and password was incorrect" });
+        .json({ message: "Name and password was incorrect" });
 
     const token = jwt.sign(
-      { id: userData.id, username: userData.username },
+      { id: userData.id, firstname: userData.firstname, lastname:userData.lastname },
       process.env.JWT_SECRET!,
       { expiresIn: "1h" }
     );
@@ -303,7 +189,7 @@ export const logincontroller = async (req: Request, res: Response) => {
       "User logged in",
       "User",
       user.id,
-      `User ${username} logged in`
+      `User ${firstname} ${lastname} logged in`
     )
    
 
@@ -312,7 +198,8 @@ export const logincontroller = async (req: Request, res: Response) => {
       token,
       user: {
         id: userData.id,
-        username: userData.username,
+        firstname: userData.firstname,
+        lastname:userData.lastname,
         roles: rolesNames,
       },
     });

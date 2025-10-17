@@ -44,7 +44,7 @@ import { User } from "../Model/userModel.ts";
 
 export const updateUser = async (
   id: number,
-  data: { username?: string; email?: string; phoneno?: string; photo?: string }
+  data: { firstname?: string;lastname?:string; email?: string; phoneno?: string; photo?: string }
 ) => {
   const userBefore = await User.findByPk(id);
   if (!userBefore) {

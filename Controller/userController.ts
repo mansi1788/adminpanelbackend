@@ -6,15 +6,17 @@ import { updateUser } from "../Service/updateService.ts";
 import { sendEmail } from "../Utils/sendEmail.ts";
 import jwt from "jsonwebtoken";
 import { createauditlog } from "../Utils/auditHelper.ts";
-import { Op, where } from "sequelize";
+import { Op } from "sequelize";
 
 
 export const getAllUsers = async(req:Request,res:Response)=>{
   console.log("Inside get controllerssssssss")
-
+  
   try{
+
     //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
-    const {username, email,role,phoneno }=req.query;
+
+    const {firstname,lastname, email,role,phoneno }=req.query;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string)|| 10;
     const offset = (page-1) * limit;
@@ -22,10 +24,12 @@ export const getAllUsers = async(req:Request,res:Response)=>{
 
 
     const whereclause:any={};
-    if(username) whereclause.username={[Op.like]: `%${username}%`};
+    if(firstname) whereclause.firstname={[Op.like]:`%${firstname}%`}
+    if(lastname) whereclause.lastname={[Op.like]: `%${lastname}%`};
     if(email) whereclause.email={[Op.like]: `%${email}%`};
     if(role) whereclause.role = {[Op.like]: `%${role}%`};
     if(phoneno) whereclause.phoneno = {[Op.like]: `%${phoneno}%`};
+
 
     const totalUsers = await User.count({where:whereclause});
 
@@ -81,22 +85,24 @@ export const update = async(req:Request,res:Response)=>{
 
   try{
 
-  const{username, email, phoneno, photo}=req.body;
+  const{firstname,lastname, email, phoneno, photo}=req.body;
   const id = Number(req.params.id);
 
-  const user = await updateUser(id,{username,email,phoneno, photo})
+  const user = await updateUser(id,{firstname , lastname , email , phoneno, photo})
 // console.log("data",user);
+
   if(!user)
   {
     console.log("user not found");
-  }  
+  }
+
 
   await createauditlog(
     user.id,
     "Update_User",
     "User",
     user.id,
-    `Update User ${username}`
+    `Update User ${firstname} ${lastname}`
 
 
   )
@@ -117,7 +123,7 @@ export const update = async(req:Request,res:Response)=>{
 export const deleteUser = async(req:Request,res:Response)=>{
 try{
   const id=Number(req.params.id);
-  const {username}= req.body;
+  const {firstname, lastname}= req.body;
 
   const user = await User.findByPk(id);
   if(!user)
@@ -131,7 +137,7 @@ try{
     "Delete_User",
     "User",
     user.id,
-    `Delete User ${username}`
+    `Delete User ${firstname} ${lastname}`
 
 
   )
@@ -147,21 +153,21 @@ try{
 export const forgetpassword = async(req:Request,res:Response)=>{
   await updateSchema.validate(req.body,{abortEarly:false});
   try{
-    const {email,username} = req.body;
+    const {email,firstname,lastname} = req.body;
     const user = await User.findOne({where:{email}});
     if(!user)
     {
       return res.json({message:"User not found"});
     }
     const userData = user?.get() as{
-      id:number,username:string,password:string,email:string
+      id:number,firstname:string,lastname:string,password:string,email:string
     };
 
-    const token  = jwt.sign({id:userData.id,username:userData.username,email:userData.email},process.env.JWT_SECRET!,{expiresIn:"1m"});
+    const token  = jwt.sign({id:userData.id,firstname:userData.firstname,lastname:userData.lastname,email:userData.email},process.env.JWT_SECRET!,{expiresIn:"1m"});
 
     const resetLink = `https://adminpanel.com/reset-password/${token}`;
 
-    const html =`<p>Hi ${username},</p>
+    const html =`<p>Hi ${firstname}${lastname},</p>
     <p>Click below to reset your password</p>
     <a href ="${resetLink}">${resetLink}</a>`;
 
