@@ -7,6 +7,7 @@ export const seed = async () => {
     const roles = ["admin", "user", "hr", "manager"];
     const permission = ["create_user", "delete_user", "update_user","view_user"];
 
+
     //if find or if not it will create roles
     for (const r of roles) {
       const [role] = await Role.findOrCreate({ where: { role_name: r} ,
@@ -28,6 +29,15 @@ export const seed = async () => {
       
       // Use perm.get('name') for Sequelize instance, or perm.name if raw
       console.log("Created or found permission:", perm.get("name"));
+    }
+
+
+    const rolePermissionMap:Record<string,string[]> ={
+      admin:["create_user","delete_user","update_user","view_user"],
+      user:["view_user"],
+      hr:["create_user","view_user","update_user"],
+      manager:["view_user","update_user"],
+
     }
 
     //find role= admin in role table
@@ -56,39 +66,58 @@ export const seed = async () => {
       //   deleteUser
       // );
 
-      if (adminRole && createUser)
-        await RolePermission.findOrCreate({
-          where: {
-            roleId: adminRole.get("id"),
-            permissionId: createUser.get("id"),
-          },
-        });
-      if (adminRole && deleteUser)
-        await RolePermission.findOrCreate({
-          where: {
-            roleId: adminRole.get("id"),
-            permissionId: deleteUser.get("id"),
-          },
-        });
-        if(adminRole && updateUser)
-        {
-          await RolePermission.findOrCreate({
-            where:{
-              roleId:adminRole.get("id"),
-              permissionId:updateUser.get("id"),
-            }
-          })
-        }
-        if(adminRole && viewUser)
-        {
-          await RolePermission.findOrCreate({
-            where:{
-              roleId:adminRole.get("id"),
-              permissionId:viewUser.get("id"),
+      for(const[roleName,perms] of Object.entries(rolePermissionMap))
+      {
+        const role= await Role.findOne({where:{role_name : roleName}});
+        if(!role) continue;
+      
+      for(const permName of perms)
+      {
+        const perm = await Permission.findOne({where:{name:permName}})
+        if(!perm) continue;
 
-            }
-          })
-        }
+        await RolePermission.findOrCreate({
+          where:{
+            roleId:role.get("id"),
+            permissionId:perm.get("id"),
+          },
+        });
+      }
+    }
+
+      // if (adminRole && createUser)
+      //   await RolePermission.findOrCreate({
+      //     where: {
+      //       roleId: adminRole.get("id"),
+      //       permissionId: createUser.get("id"),
+      //     },
+      //   });
+      // if (adminRole && deleteUser)
+      //   await RolePermission.findOrCreate({
+      //     where: {
+      //       roleId: adminRole.get("id"),
+      //       permissionId: deleteUser.get("id"),
+      //     },
+      //   });
+      //   if(adminRole && updateUser)
+      //   {
+      //     await RolePermission.findOrCreate({
+      //       where:{
+      //         roleId:adminRole.get("id"),
+      //         permissionId:updateUser.get("id"),
+      //       }
+      //     })
+      //   }
+      //   if(adminRole && viewUser)
+      //   {
+      //     await RolePermission.findOrCreate({
+      //       where:{
+      //         roleId:adminRole.get("id"),
+      //         permissionId:viewUser.get("id"),
+
+      //       }
+      //     })
+      //   }
     }
     console.log(
       "Assigned basic permissions to admin role ==================================================="

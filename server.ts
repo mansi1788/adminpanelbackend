@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import { seed } from "./seed.ts";
 import "./Model/Association/index.ts";
 import { User } from "./Model/userModel.ts";
+import rolerouter from "./Routes/roleRoute.ts";
 
 
 
@@ -46,6 +47,7 @@ app.get("/test", (req: any, res: any) => {
 
 app.use("/", router);
 app.use("/",searchroute);
+app.use("/",rolerouter);
 
 const PORT = 4040;
 

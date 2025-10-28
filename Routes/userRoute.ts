@@ -3,6 +3,7 @@ import {logincontroller,register} from "../Controller/authController.ts";
 import { deleteUser, forgetpassword, getAllUsers, update } from "../Controller/userController.ts";
 import { logAction } from "../Middleware/auditMiddleware.ts";
 import { authenticate } from "../Middleware/userMiddleware.ts";
+import { updateRolePermissions } from "../Controller/rolePermissionController.ts";
 
 const router = express.Router();
 
@@ -25,5 +26,8 @@ router.post("/api/forgetpassword", forgetpassword);
 router.get("/test-token", authenticate, (req: any, res: any) => {
   res.json({ message: "Token valid", user: req.user });
 });
+
+router.put("/api/update-role-permissions",updateRolePermissions);
+
 
 export default router;
