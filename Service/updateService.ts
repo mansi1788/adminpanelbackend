@@ -1,7 +1,7 @@
 
 // import { User } from "../Model/userModel.ts";
 
-import { User } from "../Model/userModel.ts";
+// import { User } from "../Model/userModel.ts";
 
 // export const updateUser=async(id:number,data:{username?:string, email?:string, phoneno?:string, photo?:string })=>{
 //    const user = await User.findByPk(id);
@@ -36,11 +36,9 @@ import { User } from "../Model/userModel.ts";
 
 //     const userAfter = await User.findByPk(id);
 //     console.log("After update:", userAfter?.toJSON());
-    
-
-
-
 // }
+
+
 
 export const updateUser = async (
   id: number,

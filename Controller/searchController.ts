@@ -1,8 +1,8 @@
 import type { Request,Response } from "express";
-import { User } from "../Model/userModel.ts";
-import { Op } from "sequelize";
-import { Role } from "../Model/roleModel.ts";
-import { UserRole } from "../Model/userRole.ts";
+// import { User } from "../Model/userModel.ts";
+// import { Op } from "sequelize";
+// import { Role } from "../Model/roleModel.ts";
+// import { UserRole } from "../Model/userRole.ts";
 
 
 export const searchcontroller=async(req:Request,res:Response)=>{

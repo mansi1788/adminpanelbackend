@@ -1,5 +1,3 @@
-import { Role } from "../Model/roleModel.ts";
-import { User } from "../Model/userModel.ts";
 import type { Request,Response } from "express";
 import { updateSchema } from "../Validation/userValidation.ts";
 import { updateUser } from "../Service/updateService.ts";
@@ -7,13 +5,12 @@ import { sendEmail } from "../Utils/sendEmail.ts";
 import jwt from "jsonwebtoken";
 import { createauditlog } from "../Utils/auditHelper.ts";
 import { Op } from "sequelize";
-
+import db from "../Config/db.ts"; // Adjust the path as needed to where your db instance is exported
 
 export const getAllUsers = async(req:Request,res:Response)=>{
   console.log("Inside get controllerssssssss")
   
   try{
-
     //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
 
     const {firstname,lastname, email,role,phoneno }=req.query;
@@ -21,6 +18,7 @@ export const getAllUsers = async(req:Request,res:Response)=>{
     const limit = parseInt(req.query.limit as string)|| 10;
     const offset = (page-1) * limit;
 
+    const query = db('roleuser').select("*");
 
 
     const whereclause:any={};
@@ -31,16 +29,21 @@ export const getAllUsers = async(req:Request,res:Response)=>{
     if(phoneno) whereclause.phoneno = {[Op.like]: `%${phoneno}%`};
 
 
-    const totalUsers = await User.count({where:whereclause});
+    const totalUsers = await db('roleuser').count({where:whereclause});
 
 
-    const users = await User.findAll({
-      where:Object.keys(whereclause).length ? whereclause:undefined,
-      include:[{model:Role,as:"roles"}],
-        order: [["createdAt", "DESC"]],
-        limit,
-        offset
-    });
+    // const users = await db('roleuser').findAll({
+    //   where:Object.keys(whereclause).length ? whereclause:undefined,
+    //   include:[{model:Role,as:"roles"}],
+    //     order: [["createdAt", "DESC"]],
+    //     limit,
+    //     offset
+    // });
+
+    const users = await query.clone()
+    .limit(limit)
+    .offset(offset)
+    .orderBy("roleuser.createdAt","desc");
 
 
     const userId = (req as any).user?.id;
@@ -57,9 +60,9 @@ export const getAllUsers = async(req:Request,res:Response)=>{
 
     const nextPage = page < totalPages?page+1:null ;
     const prevPage = page < totalPages?page-1:null ; 
-     
-    
-     console.log(" Users fetched successfully:", users.length);
+
+
+    console.log("Users fetched successfully: ", users.length);
     res.status(200).json({
       users,
       totalUsers,
@@ -67,18 +70,12 @@ export const getAllUsers = async(req:Request,res:Response)=>{
       prevPage,
       totalPages:Math.ceil(totalUsers/limit),
       currentPage:page,
-
     });
-
   }catch(e){
-     console.error(" Error in getAllUsers---------------------------------------------------------:", e);
+     console.error(" Error in getAllUsers----------------------------------------------------------:", e);
     res.status(500).json({message:"Error ",e});
-
   }
 }
-
-
-
 export const update = async(req:Request,res:Response)=>{
 
   await updateSchema.validate(req.body,{abortEarly:false})
@@ -88,7 +85,9 @@ export const update = async(req:Request,res:Response)=>{
   const{firstname,lastname, email, phoneno, photo}=req.body;
   const id = Number(req.params.id);
 
-  const user = await updateUser(id,{firstname , lastname , email , phoneno, photo})
+  const user = await db("roleuser")
+  .where({id})
+  .update({firstname , lastname , email , phoneno, photo})
 // console.log("data",user);
 
   if(!user)
@@ -125,12 +124,12 @@ try{
   const id=Number(req.params.id);
   const {firstname, lastname}= req.body;
 
-  const user = await User.findByPk(id);
+  const user = await db("roleuser").where({id}).first();
   if(!user)
   {
     return res.status(404).json({message:"User not found"});
   }
-  await user.destroy();
+  await db("roleuser").where({id}).delete();
 
   await createauditlog(
     user.id,
@@ -154,7 +153,7 @@ export const forgetpassword = async(req:Request,res:Response)=>{
   await updateSchema.validate(req.body,{abortEarly:false});
   try{
     const {email,firstname,lastname} = req.body;
-    const user = await User.findOne({where:{email}});
+    const user = await db("roleuser").where({email}).first();
     if(!user)
     {
       return res.json({message:"User not found"});

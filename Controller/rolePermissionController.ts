@@ -1,7 +1,7 @@
 import type { Request,Response } from "express";
-import { Role } from "../Model/roleModel.ts";
-import { RolePermission } from "../Model/rolePermission.ts";
-import { Permission } from "../Model/permission.ts";
+// import { Role } from "../Model/roleModel.ts";
+// import { RolePermission } from "../Model/rolePermission.ts";
+// import { Permission } from "../Model/permission.ts";
 
 
 export const updateRolePermissions = async(req:Request,res:Response)=>{

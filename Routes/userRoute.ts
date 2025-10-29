@@ -1,7 +1,6 @@
 import express from "express";
 import {logincontroller,register} from "../Controller/authController.ts";
 import { deleteUser, forgetpassword, getAllUsers, update } from "../Controller/userController.ts";
-import { logAction } from "../Middleware/auditMiddleware.ts";
 import { authenticate } from "../Middleware/userMiddleware.ts";
 import { updateRolePermissions } from "../Controller/rolePermissionController.ts";
 

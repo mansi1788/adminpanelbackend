@@ -1,14 +1,9 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { User } from "../Model/userModel.ts";
-import { Role } from "../Model/roleModel.ts";
-import { UserRole } from "../Model/userRole.ts";
 import jwt from "jsonwebtoken";
-import { updateUser } from "../Service/updateService.ts";
 import { updateSchema } from "../Validation/userValidation.ts";
-import { sendEmail } from "../Utils/sendEmail.ts";
 import { createauditlog } from "../Utils/auditHelper.ts";
-import { Permission } from "../Model/permission.ts";
+import db from "../Config/db.ts";
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -16,7 +11,10 @@ export const register = async (req: Request, res: Response) => {
     await updateSchema.validate(req.body, { abortEarly: false });
 
     const { firstname,lastname, email, password, phoneno, photo, isActive } = req.body;
-    let{roles} = req.body;
+    // let{roles} = req.body;
+    let { roles, role } = req.body;
+if (!roles && role) roles = [role];
+
 
     // Check required fields
     if (!firstname ||!lastname || !email || !password || !phoneno || !photo || isActive === undefined) {
@@ -24,14 +22,14 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Check if user exists
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await db('roleuser').where({ email }).first();
     if (existingUser) return res.status(400).json({ message: "User already exists" });
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
-    const user = await User.create({
+    const [user] = await db("roleuser").insert({
       firstname,
       lastname,
       email,
@@ -39,16 +37,17 @@ export const register = async (req: Request, res: Response) => {
       phoneno,
       photo,
       isActive: Boolean(isActive),
-    });
+    }
+  ,["id"]);
 // Make sure user.id exists
 if (!user.id) return res.status(500).json({ message: "User creation failed" });
 
 // Ensure roles exist
 let roleRecords;
 if (roles && roles.length > 0) {
-  roleRecords = await Role.findAll({ where: { role_name: roles } });
+  roleRecords = await db("roles").where({ role_name: roles });
 } else {
-  const defaultRole = await Role.findOne({ where: { role_name: "user" } });
+  const defaultRole = await db("roles").where({ role_name: "user" }).first();
   if (!defaultRole) return res.status(500).json({ message: "Default role 'user' not found" });
   roleRecords = [defaultRole];
 }
@@ -56,23 +55,22 @@ if (roles && roles.length > 0) {
 if (!roleRecords || roleRecords.length === 0) {
   return res.status(400).json({ message: "No valid roles found" });
 }
-
 // Assign roles safely
-
 await user.addRoles(roleRecords.map(r => r.id)); // safer than setRoles for new users
 
     // Fetch user with roles
-    const userWithRoles = await User.findByPk(user.id, {
-      include: [{ model: Role, as: "roles" }],
-    });
+    // const userWithRoles = await db().findByPk(user.id, {
+    //   include: [{ model: Role, as: "roles" }],
+    // });
 
    // roles is in string thats why roles.join(", ") will return in array that why we have chnaged it roles in array 
    if(!Array.isArray(roles))
    {
-    roles = roles ? [roles] :[];
-
+    roles = roles ? [roles] : [];
    }
-
+  
+  
+  
     await createauditlog(
       user.id,
       "CREATE_USER",
@@ -93,13 +91,15 @@ await user.addRoles(roleRecords.map(r => r.id)); // safer than setRoles for new 
         phoneno: userData.phoneno,
         photo: userData.photo,
         isActive: userData.isActive,
-        roles: userWithRoles?.roles.map(r => r.role_name) || [],
+        roles:roleRecords.map((r)=>r.role_name),
       },
       process.env.JWT_SECRET!,
       { expiresIn: "8h" }
     );
 
-    res.status(201).json({ message: "User registered successfully", token, user: userWithRoles });
+    res.status(201).json({ message: "User registered successfully", token, 
+    user: { ...user, roles: roleRecords.map((r) => r.role_name) },
+ });
   } catch (e) {
     console.error("Error in register controller:", e);
     res.status(500).json({ message: "Server error", e });
@@ -108,31 +108,16 @@ await user.addRoles(roleRecords.map(r => r.id)); // safer than setRoles for new 
 
 
 
+
 export const logincontroller = async (req: Request, res: Response) => {
 
-  await updateSchema.validate(req.body,{abortEarly:false})
-
   try {
+    const { firstname, lastname, password }: { firstname: string; lastname: string; password: string } = req.body;
 
-    const { firstname,lastname, password } = req.body;
-
-    const user = await User.findOne({
-      where: { firstname,lastname },
-      attributes: ["id", "firstname","lastname", "password"],
-      include: [
-        {
-          model: Role,
-          as: "roles",
-          include:[
-            {
-              model:Permission,
-              as:"permissions"
-
-            }
-          ]
-        },
-      ],
-    });
+    const user = await db("roleuser")
+      .where({ firstname, lastname })
+      .select(["id", "firstname", "lastname", "password"])
+      .first();
 
     if (!user)
       return res
@@ -146,7 +131,7 @@ export const logincontroller = async (req: Request, res: Response) => {
       password: string;
     };
 
-    // it will tell that user mansi is linkd with how mnay user like admin, hr, so,
+    // it will tell that user mansi is linked with how many user like admin, hr, so,
     // tell the user is linkd with how mnay user - [admin, he, manager]
     //fetch roles
     // const roles = await user.$get()as any[];

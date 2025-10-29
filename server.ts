@@ -1,12 +1,13 @@
 import express from "express";
 import type { Request, Response } from "express";
-import { connectionDB } from "./Config/db.ts";
+// import { connectionDB } from "./Config/db.ts";
 import router from "./Routes/userRoute.ts";
 import searchroute from "./Routes/searchRoute.ts"
 import dotenv from "dotenv";
 import { seed } from "./seed.ts";
-import "./Model/Association/index.ts";
-import { User } from "./Model/userModel.ts";
+import db from "./Config/db.ts";
+// import "./Model/Association/index.ts";
+// import { User } from "./Model/userModel.ts";
 import rolerouter from "./Routes/roleRoute.ts";
 
 
@@ -18,11 +19,11 @@ app.use(express.json());
 
 (async () => {
   try {
-    await connectionDB(); // await the DB connection
+    await db.raw("select 1+1 as result"); // await the DB connection
     console.log("Database connected successfully");
 
-    await User.sync({ alter: true }); // Sync User model with DB
-    console.log("User model synced");
+    // await db('roleuser').sync({ alter: true }); // Sync User model with DB
+    // console.log("User model synced");
 
     await seed(); // seed roles & permissions
     console.log("Seeding completed");

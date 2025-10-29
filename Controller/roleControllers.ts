@@ -1,5 +1,5 @@
 import type { Request,Response } from "express";
-import { Role } from "../Model/roleModel.ts";
+// import { Role } from "../Model/roleModel.ts";
 
 export const createRole = async(req:Request,res:Response)=>{
     try{
@@ -15,6 +15,16 @@ export const createRole = async(req:Request,res:Response)=>{
             defaults:{description:description || `${role_name} role`},
 
         })
+
+          await createrole(
+    user.id,
+    "Create_role",
+    "User",
+    user.id,
+    `Create role `
+
+
+  )
 
         if(!created)
         {

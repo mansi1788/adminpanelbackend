@@ -1,18 +1,24 @@
-import { Permission } from "./Model/permission.ts";
-import { Role } from "./Model/roleModel.ts";
-import { RolePermission } from "./Model/rolePermission.ts";
+// import { Permission } from "./Model/permission.ts";
+// import { Role } from "./Model/roleModel.ts";
+// import { RolePermission } from "./Model/rolePermission.ts";
+import knex from "knex";
+import config from "./Config/knexfile.ts";
 
 export const seed = async () => {
   try {
     const roles = ["admin", "user", "hr", "manager"];
     const permission = ["create_user", "delete_user", "update_user","view_user"];
 
-
+    const db=knex(config["development"]);
     //if find or if not it will create roles
     for (const r of roles) {
-      const [role] = await Role.findOrCreate({ where: { role_name: r} ,
-        defaults:{description:`${r} role`}
-      });
+      const existingRole = await db('role'). where({ role_name: r}).first();
+      
+      if(!existingRole)
+      {
+        await db("roles").insert({role_name:r, description:`${r}role`});
+        console.log(`inserted role: ${r}`);
+      }
 
       // console.log(
       //   "roleeeeeeeeeeeeeeeeeee-----------------------------------",
@@ -22,13 +28,18 @@ export const seed = async () => {
 
     //if find or if not it will create permissions
     for (const p of permission) {
-      const [perm] = await Permission.findOrCreate({ 
-        where: { name: p } ,
-        defaults: { description: `${p} permission` } 
-    });
+      const existingperm = await db("permissions")
+        .where({ name: p }).first();
+
+        if(!existingperm)
+        {
+          await db("permissions").insert({name:p,description:`${p} permission`});
+          console.log(`Inserted permission: ${p}`);
+        }
+
       
       // Use perm.get('name') for Sequelize instance, or perm.name if raw
-      console.log("Created or found permission:", perm.get("name"));
+     // console.log("Created or found permission:", perm.get("name"));
     }
 
 
@@ -41,25 +52,25 @@ export const seed = async () => {
     }
 
     //find role= admin in role table
-    const adminRole = await Role.findOne({
-      where: { role_name: "admin" },
-    });
+    // const adminRole = await Role.findOne({
+    //   where: { role_name: "admin" },
+    // });
 
     // if found then find permission like create user or delete user in permission table
-    if (adminRole) {
-      const createUser = await Permission.findOne({
-        where: { name: "create_user" },
-      });
-      const deleteUser = await Permission.findOne({
-        where: { name: "delete_user" },
+    // if (adminRole) {
+    //   const createUser = await Permission.findOne({
+    //     where: { name: "create_user" },
+    //   });
+    //   const deleteUser = await Permission.findOne({
+    //     where: { name: "delete_user" },
         
-      });
-      const updateUser = await Permission.findOne({
-        where: { name:"update_user" }
-      })
-      const viewUser = await Permission.findOne({
-        where:{name:"view_user"}
-      })
+    //   });
+    //   const updateUser = await Permission.findOne({
+    //     where: { name:"update_user" }
+    //   })
+    //   const viewUser = await Permission.findOne({
+    //     where:{name:"view_user"}
+    //   })
 
       // console.log(
       //   "deleteuser ---------------------------------------------==============",
@@ -68,20 +79,34 @@ export const seed = async () => {
 
       for(const[roleName,perms] of Object.entries(rolePermissionMap))
       {
-        const role= await Role.findOne({where:{role_name : roleName}});
+        const role= await db("role").where({role_name : roleName}).first();
         if(!role) continue;
       
+
       for(const permName of perms)
       {
-        const perm = await Permission.findOne({where:{name:permName}})
+        const perm = await db("permissions").where({name:permName}).first();
         if(!perm) continue;
 
-        await RolePermission.findOrCreate({
-          where:{
-            roleId:role.get("id"),
-            permissionId:perm.get("id"),
-          },
-        });
+        // await RolePermission.findOrCreate({
+        //   where:{
+        //     roleId:role.get("id"),
+        //     permissionId:perm.get("id"),
+        //   },
+        // });
+
+        const existingLink = await db("role_permission")
+        .where({roleId:role.id,permissionId:perm.id})
+        .first();
+
+        if(!existingLink)
+        {
+          await db("role_permission").insert({
+            roleId:role.id,
+            permissionId:perm.id,
+          });
+          console.log(`🔗 Linked ${roleName} → ${permName}`);
+        }
       }
     }
 
@@ -118,7 +143,7 @@ export const seed = async () => {
       //       }
       //     })
       //   }
-    }
+    
     console.log(
       "Assigned basic permissions to admin role ==================================================="
     );
