@@ -1,15 +1,13 @@
 import type { Request,Response } from "express";
 import { updateSchema } from "../Validation/userValidation.ts";
-import { updateUser } from "../Service/updateService.ts";
 import { sendEmail } from "../Utils/sendEmail.ts";
 import jwt from "jsonwebtoken";
 import { createauditlog } from "../Utils/auditHelper.ts";
-import { Op } from "sequelize";
-import db from "../Config/db.ts"; // Adjust the path as needed to where your db instance is exported
+import db from "../Config/db.ts"; 
 
 export const getAllUsers = async(req:Request,res:Response)=>{
-  console.log("Inside get controllerssssssss")
-  
+  console.log("Inside get controllerssssssss");
+
   try{
     //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
 
@@ -20,25 +18,24 @@ export const getAllUsers = async(req:Request,res:Response)=>{
 
     const query = db('roleuser').select("*");
 
+    query.modify((qb)=>{
+      if(firstname) qb.where("firstname","like",`%${firstname}%`);
+      if(lastname) qb.where("lastname","like",`%${lastname}`);
+      if(email) qb.where("role","like",`%${email}`);
+      if(role) qb.where("role","like",`%${role}%`);
+      if(phoneno) qb.where("phoneno","like",`%${phoneno}`);
+    })
 
-    const whereclause:any={};
-    if(firstname) whereclause.firstname={[Op.like]:`%${firstname}%`}
-    if(lastname) whereclause.lastname={[Op.like]: `%${lastname}%`};
-    if(email) whereclause.email={[Op.like]: `%${email}%`};
-    if(role) whereclause.role = {[Op.like]: `%${role}%`};
-    if(phoneno) whereclause.phoneno = {[Op.like]: `%${phoneno}%`};
+    const countquery = db("roleuser").clone().modify((qb)=>{
+      if(firstname) qb.where("firstname","like",`%${firstname}%`);
+      if(lastname) qb.where("lastname","like",`%${lastname}`);
+      if(email) qb.where("email","like",`%${email}%`);
+      if(role) qb.where("role","like",`%${role}$`);
+      if(phoneno) qb.where("phoneno","like",`%${phoneno}%`);
+    })
 
-
-    const totalUsers = await db('roleuser').count({where:whereclause});
-
-
-    // const users = await db('roleuser').findAll({
-    //   where:Object.keys(whereclause).length ? whereclause:undefined,
-    //   include:[{model:Role,as:"roles"}],
-    //     order: [["createdAt", "DESC"]],
-    //     limit,
-    //     offset
-    // });
+    const totalUsersResult = await countquery.count('* as count');
+    const totalUsers = totalUsersResult[0].count;
 
     const users = await query.clone()
     .limit(limit)
@@ -50,12 +47,13 @@ export const getAllUsers = async(req:Request,res:Response)=>{
     if(!userId) return res.status(401).json({message:"Unauthorized"});
 
     await createauditlog(
-      req.user.id,
+      userId,
       "GET_ALL_USERS",
       "User",
       0,
       `View User List`
     )
+
     const totalPages= Math.ceil(totalUsers/limit);
 
     const nextPage = page < totalPages?page+1:null ;
@@ -76,12 +74,12 @@ export const getAllUsers = async(req:Request,res:Response)=>{
     res.status(500).json({message:"Error ",e});
   }
 }
+
+
 export const update = async(req:Request,res:Response)=>{
 
   await updateSchema.validate(req.body,{abortEarly:false})
-
   try{
-
   const{firstname,lastname, email, phoneno, photo}=req.body;
   const id = Number(req.params.id);
 
@@ -94,13 +92,11 @@ export const update = async(req:Request,res:Response)=>{
   {
     console.log("user not found");
   }
-
-
   await createauditlog(
-    user.id,
+    user,
     "Update_User",
     "User",
-    user.id,
+    user,
     `Update User ${firstname} ${lastname}`
 
 
@@ -113,7 +109,6 @@ export const update = async(req:Request,res:Response)=>{
   {
     console.error("Error updating user:", e);
     res.status(500).json({message:"did not update",e})
-
   }
 
 }
@@ -150,7 +145,7 @@ try{
 }
 
 export const forgetpassword = async(req:Request,res:Response)=>{
-  await updateSchema.validate(req.body,{abortEarly:false});
+  //await updateSchema.validate(req.body,{abortEarly:false});
   try{
     const {email,firstname,lastname} = req.body;
     const user = await db("roleuser").where({email}).first();
@@ -158,11 +153,19 @@ export const forgetpassword = async(req:Request,res:Response)=>{
     {
       return res.json({message:"User not found"});
     }
-    const userData = user?.get() as{
-      id:number,firstname:string,lastname:string,password:string,email:string
+    const userData =user as {
+      id:number;
+      firstname:string;
+      lastname:string;
+      password:string;
+      email:string
     };
 
-    const token  = jwt.sign({id:userData.id,firstname:userData.firstname,lastname:userData.lastname,email:userData.email},process.env.JWT_SECRET!,{expiresIn:"1m"});
+    const token  = jwt.sign({id:userData.id,
+      firstname:userData.firstname,
+      lastname:userData.lastname,
+      email:userData.email},
+      process.env.JWT_SECRET!,{expiresIn:"1m"});
 
     const resetLink = `https://adminpanel.com/reset-password/${token}`;
 
@@ -174,7 +177,6 @@ export const forgetpassword = async(req:Request,res:Response)=>{
 
 
     res.json({message:"Password reset Link send to your email"});
-
   }
   catch(e){
     res.status(500).json({message:"Error sending resent mail",e})

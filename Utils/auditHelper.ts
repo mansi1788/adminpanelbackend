@@ -1,19 +1,26 @@
 // import { Audit } from "../Model/auditModel.ts";
-
+import Knex from "knex"
+import db from "../Config/db.ts";
+import { object } from "yup";
 export const createauditlog = async (
   userId: number | null,
   action: string,
   entity: string,
   entityId: number,
-  detail?: string
+  detail?: string | object
 ) => {
   try {
-    await Audit.create({
+    await db("audit").insert({
       userId,
       action,
       entity,
       entityId,
-      detail,
+      detail: JSON.stringify(
+        typeof detail === "string" ?{message:detail}:detail||{},
+        
+      ),
+       createdAt: new Date(),
+        updatedAt: new Date(),
     });
     console.log(
       "audit log created....................................................",

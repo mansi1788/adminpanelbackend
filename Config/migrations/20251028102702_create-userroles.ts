@@ -1,4 +1,5 @@
 import type { Knex } from "knex";
+import {addTimeStamps} from "../../Utils/timestampHelper";
 
 
 export async function up(knex: Knex): Promise<void> {
@@ -7,8 +8,9 @@ export async function up(knex: Knex): Promise<void> {
         table.integer("userId").unsigned().notNullable();
         table.integer("roleId").unsigned().notNullable();
 
-        table.foreign("userId").references("userId").onDelete("CASCADE");
-        table.foreign("roleId").references("roleId").onDelete("CASCADE");
+        table.foreign("userId").references("roleuser.id").onDelete("CASCADE");
+        table.foreign("roleId").references("role.id").onDelete("CASCADE");
+        addTimeStamps(table, knex);
     });
 }
 
