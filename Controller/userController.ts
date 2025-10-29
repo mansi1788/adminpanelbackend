@@ -9,8 +9,9 @@ export const getAllUsers = async(req:Request,res:Response)=>{
   console.log("Inside get controllerssssssss");
 
   try{
-    //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
 
+    //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
+    
     const {firstname,lastname, email,role,phoneno }=req.query;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string)|| 10;
