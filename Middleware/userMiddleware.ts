@@ -8,30 +8,6 @@ import dotenv from "dotenv";
 import knex from "knex";
 dotenv.config();
 
-// export const authenticate =(req:Request,res:Response,next:NextFunction)=>{
-//        try{
-//     const token = req.headers.authorization?.split(' ')[1];
-//     if(!token )return res.status(401).json({message:"No token provided"});
-
-//         const decoded = jwt.verify(token,process.env.JWT_SECRET)
-//         req.user=decoded;
-//         next();
-
-//     }catch(e){
-//         return res.status(401).json({message:"Invaild token"});
-
-//     }
-// };
-
-// export const authorizeRole = (allowedRoles:number[])=>{
-//     return(req:Request,res:Response,next:NextFunction)=>{
-//         const user =(req).user;
-//         if(!allowedRoles.includes(user.role)){
-//             return res.status(403).json({message:"Forbidden:Access denied"});
-//         }
-//         next();
-//     };
-// };
 
 const db=knex(config["development"]);
 export const authenticate = (req: Request,res: Response,next: NextFunction
@@ -66,8 +42,9 @@ export const authorizePermission = (permissionName: string) => {
       const user = await db("roleuser").where({id:userId}).first();
       if (!user) return res.status(401).json({ message: "User not found" });
 
+      
       // fetch all roles assisgned to this user
-      //joinTableAttributes[] dont fetch extra data from the linking table
+      //joinTableAttributes[] don't fetch extra data from the linking table
       const roles = await db("roles")
       .join("user_roles","roles.id","=","user_roles.role_id")
       .where("user_roles.user_id",userId)

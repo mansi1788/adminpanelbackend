@@ -1,5 +1,5 @@
 import type { Request,Response } from "express";
-// import { Role } from "../Model/roleModel.ts";
+import db from "../Config/db.ts";
 
 export const createRole = async(req:Request,res:Response)=>{
     try{
@@ -8,30 +8,30 @@ export const createRole = async(req:Request,res:Response)=>{
         if(!role_name)
         {
             return res.status(400).json({message:"Role name is required"});
-
         }
-        const [role,created] = await Role.findOrCreate({
-            where:{role_name},
-            defaults:{description:description || `${role_name} role`},
 
-        })
+        const existing = await db('role').where({role_name}).first();
+        let roles,created=false;
+        if(existing)
+        {
+            roles=existing;
+        }
+        else{
+            const[insertedId] = await db('role').insert({
+                role_name,
+                description:description||`${role_name}role`,
 
-          await createrole(
-    user.id,
-    "Create_role",
-    "User",
-    user.id,
-    `Create role `
-
-
-  )
+            })
+            roles = await db('role').where({id:insertedId}).first();
+            created=true;
+        }
 
         if(!created)
         {
             return res.status(400).json({message:"Role already exists"});
 
         }
-        return res.status(201).json({message:"Role created Successfully",role});
+        return res.status(201).json({message:"Role created Successfully",roles});
     }catch(e)
     {
         console.log("Error creating role",e)
@@ -43,7 +43,7 @@ export const createRole = async(req:Request,res:Response)=>{
 
 export const getAllRoles = async(req:Request,res:Response)=>{
     try{
-        const roles=await Role.findAll({attributes:["id","role_name"]});
+        const roles=await db('role').select({attributes:["id","role_name"]});
         return res.status(200).json({roles});
 
     }catch(e)
@@ -58,7 +58,7 @@ export const getAllRoles = async(req:Request,res:Response)=>{
 export const deleteRoles = async(req:Request,res:Response)=>{
     try{
         const {id} = req.params;
-        const deleted = await Role.destroy({where:{id}});
+        const deleted = await db('role').where(id).del();
 
         if(deleted === 0 )
         {

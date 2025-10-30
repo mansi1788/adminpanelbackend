@@ -1,4 +1,4 @@
-import { Audit } from "../Model/auditModel.ts";
+import db from "../Config/db.ts";
 
 export const logAction = (action: string, entity?: string) => {
   return async (
@@ -8,7 +8,7 @@ export const logAction = (action: string, entity?: string) => {
   ) => {
     console.log("🟡 Inside logAction middleware");
     try {
-      await Audit.create({
+      await db("audit").insert({
         userId: req.user.id || null,
         action,
         entity,

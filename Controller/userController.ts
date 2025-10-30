@@ -9,7 +9,6 @@ export const getAllUsers = async(req:Request,res:Response)=>{
   console.log("Inside get controllerssssssss");
 
   try{
-
     //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
     
     const {firstname,lastname, email,role,phoneno }=req.query;
@@ -35,6 +34,7 @@ export const getAllUsers = async(req:Request,res:Response)=>{
       if(phoneno) qb.where("phoneno","like",`%${phoneno}%`);
     })
 
+
     const totalUsersResult = await countquery.count('* as count');
     const totalUsers = totalUsersResult[0].count;
 
@@ -42,7 +42,6 @@ export const getAllUsers = async(req:Request,res:Response)=>{
     .limit(limit)
     .offset(offset)
     .orderBy("roleuser.createdAt","desc");
-
 
     const userId = (req as any).user?.id;
     if(!userId) return res.status(401).json({message:"Unauthorized"});
