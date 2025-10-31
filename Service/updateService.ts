@@ -1,5 +1,3 @@
-import db from "../Config/db";
-
 export const updateUser = async (
   id: number,
   data: { firstname?: string;
@@ -8,7 +6,7 @@ export const updateUser = async (
     
     phoneno?: string; photo?: string }
 ) => {
-  const userBefore = await db("user").where(id).first();
+  const userBefore = await User.findByPk(id);
   if (!userBefore) {
     console.log("User not found in DB");
     return null;
@@ -28,11 +26,11 @@ export const updateUser = async (
     return userBefore;
   }
 
-  const updatedRows = await db("user").where({id}).update(updateData);
+  const [updatedRows] = await User.update(updateData, { where: { id }, logging: console.log });
   console.log("Updated Rows:", updatedRows);
 
   // Always fetch the updated record to return
-  const userAfter = await db("user").where(id).first();
+  const userAfter = await User.findByPk(id);
   //console.log("After update:", userAfter?.toJSON());
 
   return userAfter; // ✅ always return the updated record
