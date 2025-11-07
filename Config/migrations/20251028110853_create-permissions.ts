@@ -1,16 +1,13 @@
 import type { Knex } from "knex";
 
-
 export async function up(knex: Knex): Promise<void> {
-    return knex.schema.createTable("permissions",(table)=>{
-        table.increments("id").primary();
-        table.string("name").notNullable();
-        table.timestamps(true,true);
-    });
+  return knex.schema.createTable("permission", (table) => {
+    table.increments("id").primary();
+    table.string("name").notNullable();
+    table.timestamps(true, true);
+  });
 }
-
 
 export async function down(knex: Knex): Promise<void> {
-    return knex.schema.dropTableIfExists("permissions");
+  return knex.schema.dropTableIfExists("permission");
 }
-

@@ -1,14 +1,14 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { updateSchema } from "../Validation/userValidation.ts";
+import { loginSchema, registerSchema, updateSchema } from "../Validation/userValidation.ts";
 import { createauditlog } from "../Utils/auditHelper.ts";
 import db from "../Config/db.ts";
 
 export const register = async (req: Request, res: Response) => {
   try {
     // Validate input
-    await updateSchema.validate(req.body, { abortEarly: false });
+    await registerSchema.validate(req.body, { abortEarly: false });
 
     const { firstname, lastname, email, password, phoneno, photo, isActive } =
       req.body;
@@ -46,6 +46,7 @@ export const register = async (req: Request, res: Response) => {
         password: hashedPassword,
         phoneno,
         photo,
+        roles: roles || "user",
         isActive: Boolean(isActive),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -55,17 +56,14 @@ export const register = async (req: Request, res: Response) => {
     console.log([user]);
     // Make sure user.id exists
     //const user_Id = Array.isArray(user) ? user[0] : user;
-    if (!user)
-      return res.status(500).json({ message: "User creation failed" });
+    if (!user) return res.status(500).json({ message: "User creation failed" });
 
     // Ensure roles exist
     let roleRecords;
     if (roles && roles.length > 0) {
       roleRecords = await db("role").where({ role_name: roles });
     } else {
-      const defaultRole = await db("role")
-        .where({ role_name: "user" })
-        .first();
+      const defaultRole = await db("role").where({ role_name: "user" }).first();
       if (!defaultRole)
         return res
           .status(500)
@@ -77,7 +75,7 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "No valid roles found" });
     }
     // Assign roles by inserting into junction table
-    await db('user_roles').insert(
+    await db("user_roles").insert(
       roleRecords.map((role) => ({
         userId: user,
         roleId: role.id,
@@ -93,15 +91,17 @@ export const register = async (req: Request, res: Response) => {
     // roles is in string thats why roles.join(", ") will return in array that why we have chnaged it roles in array
     if (!Array.isArray(roles)) {
       roles = roles ? [roles] : [];
+
+     // roles = roles.join(","); //this convert the array to comma-seprated string
     }
 
-    console.log(user.id)
+    console.log(user.id);
     await createauditlog(
-      user,
+      `${firstname} ${lastname}`,
       "CREATE_USER",
       "User",
       user,
-      `User '${firstname} ${lastname}' registered with roles. `
+      `User '${firstname} ${lastname}' registered . `
     );
 
     const userData = {
@@ -112,7 +112,7 @@ export const register = async (req: Request, res: Response) => {
       email,
       phoneno,
       photo,
-      isActive
+      isActive,
     };
     const token = jwt.sign(
       {
@@ -129,28 +129,29 @@ export const register = async (req: Request, res: Response) => {
       { expiresIn: "8h" }
     );
 
-    res
-      .status(201)
-      .json({
-        message: "User registered successfully",
-        token,
-        user: { ...user, roles: roleRecords.map((r) => r.role_name) },
-      });
+    res.status(201).json({
+      message: "User registered successfully",
+      token,
+      user: { ...user, roles: roleRecords.map((r) => r.role_name) },
+    });
   } catch (e) {
     console.error("Error in register controller:", e);
     res.status(500).json({ message: "Server error", e });
   }
 };
 
+
 export const logincontroller = async (req: Request, res: Response) => {
   try {
+    await loginSchema.validate(req.body, { abortEarly: false });
+
     const {
       firstname,
       lastname,
       password,
     }: { firstname: string; lastname: string; password: string } = req.body;
 
-     const user = await db("roleuser as u")
+    const user = await db("roleuser as u")
       .leftJoin("user_roles as ur", "u.id", "ur.userId")
       .leftJoin("role as r", "ur.roleId", "r.id")
       .where({ "u.firstname": firstname, "u.lastname": lastname })
@@ -160,17 +161,14 @@ export const logincontroller = async (req: Request, res: Response) => {
         "u.lastname",
         "u.password",
         db.raw("JSON_ARRAYAGG(JSON_QUOTE(r.role_name)) as roles")
-
       )
       .groupBy("u.id")
       .first();
 
+    if (!user) return res.status(404).json({ message: "Name and not found" });
 
-    if (!user)
-      return res.status(404).json({ message: "Name and not found" });
-
-    const userData =  {
-      id:user.id,
+    const userData = {
+      id: user.id,
       firstname,
       lastname,
       password,
@@ -184,18 +182,21 @@ export const logincontroller = async (req: Request, res: Response) => {
       r.permissions?.forEach((p: { name: string }) => permissions.push(p.name));
     });
 
-
-    console.log("roleName",rolesNames)
+    console.log("roleName", rolesNames);
     console.log(user.roles);
 
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log("password111111111111111111111111111111111111111111111111111111",password);
-    console.log("userData",userData.password);
+    console.log(
+      "password111111111111111111111111111111111111111111111111111111",
+      password
+    );
+    console.log("userData", userData.password);
     if (!isMatch)
-      return res
-        .status(400)
-        .json({ message: "password was incorrect" });
-        console.log("isMatch------------------------------------------------------",isMatch)
+      return res.status(400).json({ message: "password was incorrect" });
+    console.log(
+      "isMatch------------------------------------------------------",
+      isMatch
+    );
 
     const token = jwt.sign(
       {
@@ -208,7 +209,7 @@ export const logincontroller = async (req: Request, res: Response) => {
     );
 
     await createauditlog(
-      user.id,
+       `${firstname} ${lastname}`,
       "User logged in",
       "User",
       user.id,

@@ -16,7 +16,7 @@ export const seed = async () => {
       
       if(!existingRole)
       {
-        await db("roles").insert({role_name:r, description:`${r}role`});
+        await db("role").insert({role_name:r, description:`${r} role`,});
         console.log(`inserted role: ${r}`);
       }
 
@@ -28,12 +28,12 @@ export const seed = async () => {
 
     //if find or if not it will create permissions
     for (const p of permission) {
-      const existingperm = await db("permissions")
+      const existingperm = await db("permission")
         .where({ name: p }).first();
 
         if(!existingperm)
         {
-          await db("permissions").insert({name:p,description:`${p} permission`});
+          await db("permission").insert({name:p});
           console.log(`Inserted permission: ${p}`);
         }
 
@@ -85,7 +85,7 @@ export const seed = async () => {
 
       for(const permName of perms)
       {
-        const perm = await db("permissions").where({name:permName}).first();
+        const perm = await db("permission").where({name:permName}).first();
         if(!perm) continue;
 
         // await RolePermission.findOrCreate({

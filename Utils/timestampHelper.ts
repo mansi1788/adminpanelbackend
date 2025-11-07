@@ -1,4 +1,5 @@
-import {Knex} from "knex";
+import type { Knex } from "knex";
+
 
 export const addTimeStamps = (table:Knex.CreateTableBuilder,knex:Knex)=>{
     table

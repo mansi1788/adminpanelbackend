@@ -1,16 +1,13 @@
 import type { Knex } from "knex";
 
 export async function up(knex: Knex): Promise<void> {
-  return knex.schema.createTable("roleuser", (table) => {
+  return knex.schema.createTable("cms", (table) => {
     table.increments("id").primary();
-    table.string("firstname").notNullable();
-    table.string("lastname").notNullable();
-    table.string("email").notNullable();
-    table.string("password").notNullable();
-    table.string("phoneno").notNullable();
-    table.string("photo").notNullable();
+    table.string("key").notNullable();
+    table.string("title").notNullable();
+    table.string("meta_keyword").notNullable();
     table.boolean("isActive").notNullable();
-    // table.timestamps(true,true);
+    
     table
       .timestamp("createdAt")
       .defaultTo(knex.raw("CURRENT_TIMESTAMP"))
@@ -23,5 +20,5 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-  return knex.schema.dropTableIfExists("roleuser");
+  return knex.schema.dropTableIfExists("cms");
 }
