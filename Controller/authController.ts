@@ -1,29 +1,46 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { loginSchema, registerSchema, updateSchema } from "../Validation/userValidation.ts";
+import {
+  loginSchema,
+  registerSchema,
+  updateSchema,
+} from "../Validation/userValidation.ts";
 import { createauditlog } from "../Utils/auditHelper.ts";
 import db from "../Config/db.ts";
 
 export const register = async (req: Request, res: Response) => {
   try {
+    await registerSchema.validate(req.body, { abortEarly: false });
     // Validate input
+    console.log("Incoming form-data", req.body);
+    console.log("uploaded file", req.file);
+
+    if (req.body.isActive === "true") req.body.isActive = true;
+    else if (req.body.isActive === "false") req.body.isActive = false;
+
     await registerSchema.validate(req.body, { abortEarly: false });
 
-    const { firstname, lastname, email, password, phoneno, photo, isActive } =
-      req.body;
+    const { firstname, lastname, email, phoneno, isActive } = req.body;
+
     // let{roles} = req.body;
     let { roles, role } = req.body;
     if (!roles && role) roles = [role];
+
+    let photo: string | null = null;
+    if (req.file) {
+      photo = `/upload/${req.file.filename}`;
+    } else {
+      return res.status(400).json({ message: "Photo is required" });
+    }
+    console.log("File saved at:", req.file?.path);
 
     // Check required fields
     if (
       !firstname ||
       !lastname ||
       !email ||
-      !password ||
       !phoneno ||
-      !photo ||
       isActive === undefined
     ) {
       return res.status(400).json({ message: "All fields are required" });
@@ -34,8 +51,6 @@ export const register = async (req: Request, res: Response) => {
     if (existingUser)
       return res.status(400).json({ message: "User already exists" });
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
     const [user] = await db("roleuser").insert(
@@ -43,7 +58,6 @@ export const register = async (req: Request, res: Response) => {
         firstname,
         lastname,
         email,
-        password: hashedPassword,
         phoneno,
         photo,
         roles: roles || "user",
@@ -74,6 +88,7 @@ export const register = async (req: Request, res: Response) => {
     if (!roleRecords || roleRecords.length === 0) {
       return res.status(400).json({ message: "No valid roles found" });
     }
+
     // Assign roles by inserting into junction table
     await db("user_roles").insert(
       roleRecords.map((role) => ({
@@ -92,23 +107,23 @@ export const register = async (req: Request, res: Response) => {
     if (!Array.isArray(roles)) {
       roles = roles ? [roles] : [];
 
-     // roles = roles.join(","); //this convert the array to comma-seprated string
+      // roles = roles.join(","); //this convert the array to comma-seprated string
     }
 
     console.log(user.id);
+
     await createauditlog(
       `${firstname} ${lastname}`,
       "CREATE_USER",
       "User",
       user,
-      `User '${firstname} ${lastname}' registered . `
+      `User '${firstname} ${lastname}' registered. `
     );
 
     const userData = {
       id: user,
       firstname,
       lastname,
-      password,
       email,
       phoneno,
       photo,
@@ -134,97 +149,138 @@ export const register = async (req: Request, res: Response) => {
       token,
       user: { ...user, roles: roleRecords.map((r) => r.role_name) },
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error("Error in register controller:", e);
     res.status(500).json({ message: "Server error", e });
+    const errors: { [key: string]: string } = {};
+    if (e.inner) {
+      e.inner.forEach((e: any) => {
+        if (e.path) errors[e.path] = e.message;
+      });
+    }
+    res.status(400).json({ errors });
   }
 };
+
+
 
 
 export const logincontroller = async (req: Request, res: Response) => {
   try {
     await loginSchema.validate(req.body, { abortEarly: false });
 
-    const {
-      firstname,
-      lastname,
-      password,
-    }: { firstname: string; lastname: string; password: string } = req.body;
+    const { email, password}: { email: string; password: string; } = req.body;
 
     const user = await db("roleuser as u")
       .leftJoin("user_roles as ur", "u.id", "ur.userId")
       .leftJoin("role as r", "ur.roleId", "r.id")
-      .where({ "u.firstname": firstname, "u.lastname": lastname })
+      .where({ "u.email": email })
       .select(
         "u.id",
-        "u.firstname",
-        "u.lastname",
+        "u.email",
         "u.password",
-        db.raw("JSON_ARRAYAGG(JSON_QUOTE(r.role_name)) as roles")
+        "u.firstname",
+         "u.lastname",
+          "u.email",
+          "u.phoneno",
+          "u.photo",
+          "u.isActive",
+        // Remove JSON_QUOTE, just aggregate role_name
+        db.raw("COALESCE(JSON_ARRAYAGG(r.role_name), JSON_ARRAY()) as roles")
       )
       .groupBy("u.id")
       .first();
 
-    if (!user) return res.status(404).json({ message: "Name and not found" });
+    if (!user) return res.status(404).json({ message: "Name and Email not found" });
 
-    const userData = {
-      id: user.id,
-      firstname,
-      lastname,
-      password,
-    };
+   let parsedRoles: string[] = [];
 
-    const rolesNames =
-      user.roles?.map((r: { role_name: any }) => r.role_name) || [];
-    const permissions: string[] = [];
+if (Array.isArray(user.roles)) {
+  parsedRoles = user.roles.filter(r  => r && r.trim() !== "");
+} else if (typeof user.roles === "string") {
+  try {
+    const parsed = JSON.parse(user.roles);
+    if (Array.isArray(parsed)) parsedRoles = parsed.filter(r => r && r.trim() !== "");
+  } catch (err) {
+    console.error("Error parsing roles JSON:", user.roles, err);
+  }
+}
 
-    user.roles?.forEach((r: { permissions: any[] }) => {
-      r.permissions?.forEach((p: { name: string }) => permissions.push(p.name));
-    });
+console.log("parsedRoles after processing:", parsedRoles);
+
+
+    const rolesNames = parsedRoles;
+
+    // const userData = {
+    //   id: user.id,
+    //   email,
+    //   password,
+    //   firstname,
+    //   lastname,
+    // };
+
+    // const rolesNames =
+    //   user.roles?.map((r: { role_name: any }) => r.role_name) || [];
+    // const permissions: string[] = [];
+
+    // user.roles?.forEach((r: { permissions: any[] }) => {
+    //   r.permissions?.forEach((p: { name: string }) => permissions.push(p.name));
+    // });
 
     console.log("roleName", rolesNames);
     console.log(user.roles);
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(
+      String(password),
+      String(user.password)
+    );
     console.log(
       "password111111111111111111111111111111111111111111111111111111",
       password
     );
-    console.log("userData", userData.password);
+    console.log("userData", user.password);
     if (!isMatch)
       return res.status(400).json({ message: "password was incorrect" });
     console.log(
       "isMatch------------------------------------------------------",
       isMatch
     );
+    console.log("user.roles raw from DB:", user.roles);
+console.log("parsedRoles after processing:", parsedRoles);
+
 
     const token = jwt.sign(
       {
-        id: userData.id,
-        firstname: userData.firstname,
-        lastname: userData.lastname,
+      id: user.id,
+      email: user.email,
+      firstname: user.firstname,
+      lastname: user.lastname,
       },
       process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
+      { expiresIn: "8h" }
     );
-
+   
     await createauditlog(
-       `${firstname} ${lastname}`,
+      `${user.firstname} ${user.lastname}`,
       "User logged in",
       "User",
       user.id,
-      `User ${firstname} ${lastname} logged in`
+      `User ${user.firstname} ${user.lastname} logged in`
     );
 
     return res.status(200).json({
       message: "Login successfully",
       token,
-      user: {
-        id: userData.id,
-        firstname: userData.firstname,
-        lastname: userData.lastname,
-        roles: JSON.parse(user.roles || "[]"),
-      },
+      user:{
+      id: user.id,
+    firstname: user.firstname,
+    lastname: user.lastname,
+    email: user.email,
+    phoneno: user.phoneno,
+    photo: user.photo,
+    isActive: user.isActive,
+    roles: parsedRoles, 
+      }
     });
   } catch (e) {
     res.status(500).json({ message: "Error in loging", e });

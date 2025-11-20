@@ -1,12 +1,13 @@
 import express  from "express";
 import { createfaqController, deletefaq, getAllfaq, updatefaq } from "../Controller/faqController.ts";
+import { authenticate } from "../Middleware/userMiddleware.ts";
 
 const faq = express.Router();
 
-faq.post("/create-faq", createfaqController );
-faq.get("/getallfaq",getAllfaq);
-faq.put("/update-faq/:id",updatefaq);
-faq.delete("/delete-faq/:id",deletefaq);
+faq.post("/create-faq",authenticate, createfaqController );
+faq.get("/getallfaq",authenticate,getAllfaq);
+faq.put("/update-faq/:id",authenticate,updatefaq);
+faq.delete("/delete-faq/:id",authenticate,deletefaq);
 
 
 

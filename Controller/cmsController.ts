@@ -6,12 +6,14 @@ import db from "../Config/db.ts";
 
 export const createcmsController = async (req: Request, res: Response) => {
   try {
-    const {key,title,meta_keyword ,isActive } =req.body;
+    const {key,title,meta_keyword,body ,isActive } =req.body;
 
     if (
     ! key ||
       !title ||
       !meta_keyword ||
+      !body ||
+
       isActive === undefined
     ) {
       return res.status(400).json({ message: "All fields are required" });
@@ -29,6 +31,7 @@ export const createcmsController = async (req: Request, res: Response) => {
         key,
         meta_keyword,
         title,
+        body,
         isActive: Boolean(isActive),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -39,7 +42,7 @@ export const createcmsController = async (req: Request, res: Response) => {
     //const user_Id = Array.isArray(user) ? user[0] : user;
     if (!cms) return res.status(500).json({ message: "cms creation failed" });
 
-  const user = req.user; // Assuming middleware sets req.user
+  const user =(req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -72,7 +75,7 @@ export const getAllcms=async(req:Request,res:Response)=>{
   try {
     //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
 
-    const {key,title,meta_keyword,isActive } = req.query;
+    const {key,title,meta_keyword,body,isActive } = req.query;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
@@ -83,6 +86,7 @@ export const getAllcms=async(req:Request,res:Response)=>{
       if (key) qb.where("key", "like", `%${key}%`);
       if (title) qb.where("title", "like", `%${title}%`);
       if (meta_keyword) qb.where("meta_keyword", "like", `%${meta_keyword}%`);
+      if(body) qb.where("body","like",`%${body}%`);
      
 
       if (isActive) {
@@ -97,6 +101,7 @@ export const getAllcms=async(req:Request,res:Response)=>{
         if (key) qb.where("key", "like", `%${key}%`);
         if (title) qb.where("title", "like", `%${title}%`);
         if (meta_keyword) qb.where("meta_keyword", "like", `%${meta_keyword}%`);
+        if(body) qb.where("body","like",`%${body}%`);
         if (isActive) {
   if (isActive === "Active") qb.where("isActive", true);
   else if (isActive === "Inactive") qb.where("isActive", false);
@@ -113,7 +118,8 @@ export const getAllcms=async(req:Request,res:Response)=>{
       .offset(offset)
       .orderBy("cms.createdAt", "desc");
 
- const user = req.user; // Assuming middleware sets req.user
+ const user =( req as any ).user;
+  console.log("user",user) // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -151,7 +157,7 @@ export const getAllcms=async(req:Request,res:Response)=>{
 export const updatecms = async (req: Request, res: Response) => {
  
   try {
-    const { key,title,meta_keyword, isActive } = req.body;
+    const { key,title,meta_keyword,body, isActive } = req.body;
     const id = Number(req.params.id);
 
     const updateData: any = { updatedAt: new Date() };
@@ -159,12 +165,13 @@ export const updatecms = async (req: Request, res: Response) => {
     if (key) updateData.key = key;
     if (title) updateData.title = title;
     if (meta_keyword) updateData.meta_keyword = meta_keyword;
+    if(body) updateData.body = body;
     if (typeof isActive === "boolean") updateData.isActive = isActive;
 
     await db("cms").where({ id }).update(updateData);
     // console.log("data",user);
 
- const user = req.user; // Assuming middleware sets req.user
+ const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -199,7 +206,7 @@ export const deletecms = async (req: Request, res: Response) => {
     const result = await db("cms").where({ id }).delete();
     console.log("Delete result:", result);
 
-     const user = req.user; // Assuming middleware sets req.user
+     const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -212,7 +219,7 @@ export const deletecms = async (req: Request, res: Response) => {
       `Deleted cms Template `
     );
 
-    return res.status(200).json({ message: "Deleted cms Template Successfully" });
+    return res.status(200).json({ message: "Cms deleted successsfully" });
   } catch (e) {
     console.error("Error deleting cms backend:", e);
     return res.status(500).json({

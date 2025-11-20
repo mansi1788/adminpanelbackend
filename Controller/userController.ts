@@ -5,6 +5,8 @@ import jwt from "jsonwebtoken";
 import { createauditlog } from "../Utils/auditHelper.ts";
 import db from "../Config/db.ts";
 import { updateroleSchema } from "../Validation/roleValidation.ts";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 export const getAllUsers = async (req: Request, res: Response) => {
   console.log("Inside get controllerssssssss");
@@ -55,10 +57,11 @@ export const getAllUsers = async (req: Request, res: Response) => {
       .offset(offset)
       .orderBy("roleuser.createdAt", "desc");
 
-    const userId = (req as any).user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
+    console.log(user);
 
-    await createauditlog(  `${firstname} ${lastname}`, "GET_ALL_USERS", "User", 0, `View User List`);
+    await createauditlog(  `${user.firstname} ${user.lastname}`, "GET_ALL_USERS", "User", 0, `View User List`);
 
     const totalPages = Math.ceil(totalUsers / limit);
 
@@ -86,7 +89,16 @@ export const getAllUsers = async (req: Request, res: Response) => {
 export const update = async (req: Request, res: Response) => {
   await updateSchema.validate(req.body, { abortEarly: false });
   try {
-    const { firstname, lastname, email, phoneno, photo, isActive } = req.body;
+    
+    const firstname = req.body.firstname;
+    const lastname = req.body.lastname;
+    const email = req.body.email;
+    
+      const isActive = req.body.isActive === "true";
+       const phoneno = req.body.phoneno;
+
+       const photo = req.file ? req.file.filename:undefined;
+
     const id = Number(req.params.id);
 
     const updateData: any = { updatedAt: new Date() };
@@ -165,7 +177,10 @@ export const forgetpassword = async (req: Request, res: Response) => {
     const user = await db("roleuser").where({ email }).first();
     if (!user) {
       return res.json({ message: "User not found" });
-    }
+     }
+
+     const token = crypto.randomBytes(32).toString("hex");
+  
     const userData = user as {
       id: number;
       firstname: string;
@@ -174,18 +189,24 @@ export const forgetpassword = async (req: Request, res: Response) => {
       email: string;
     };
 
-    const token = jwt.sign(
-      {
-        id: userData.id,
-        firstname: userData.firstname,
-        lastname: userData.lastname,
-        email: userData.email,
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: "1m" }
-    );
+  //  const token = jwt.sign(
+  //     {
+  //       id: userData.id,
+  //       firstname: userData.firstname,
+  //       lastname: userData.lastname,
+  //       email: userData.email,
+  //     },
+  //     process.env.JWT_SECRET!,
+  //     { expiresIn: "1h" }
+  //   );const token = crypto.randomBytes(32).toString("hex");
+await db("password_resets").insert({
+  userId: user.id,
+  token,
+  expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+  used: false,
+});
 
-    const resetLink = `https://adminpanel.com/reset-password/${token}`;
+    const resetLink = `http://localhost:3000/reset-password/${token}`;
 
     const html = `<p>Hi ${firstname}${lastname},</p>
     <p>Click below to reset your password</p>
@@ -195,5 +216,38 @@ export const forgetpassword = async (req: Request, res: Response) => {
     res.json({ message: "Password reset Link send to your email" });
   } catch (e) {
     res.status(500).json({ message: "Error sending resent mail", e });
+    console.log(e);
+  }
+};
+
+export const resetpassword = async (req: Request, res: Response) => {
+  const { token, password } = req.body;
+  try {
+    // Find token in DB
+    const resetRecord = await db("password_resets").where({ token }).first();
+
+    if (!resetRecord) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    // Check if token expired
+    if (new Date(resetRecord.expiresAt) < new Date()) {
+      await db("password_resets").where({ token }).del();
+      return res.status(400).json({ message: "Token expired" });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Update user password
+    await db("roleuser").where({ id: resetRecord.userId }).update({ password: hashedPassword });
+
+    // Delete token after use
+    await db("password_resets").where({ token }).del();
+
+    res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };

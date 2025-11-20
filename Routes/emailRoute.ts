@@ -1,12 +1,13 @@
 import express  from "express";
 import { createEmailController, deleteEmail, getAllEmail, updateemail } from "../Controller/emailController.ts";
+import { authenticate } from "../Middleware/userMiddleware.ts";
 
 const email = express.Router();
 
-email.post("/create-email", createEmailController );
-email.get("/getallemail",getAllEmail);
-email.put("/update-email/:id",updateemail);
-email.delete("/delete-email/:id",deleteEmail);
+email.post("/create-email",authenticate, createEmailController );
+email.get("/getallemail",authenticate,getAllEmail);
+email.put("/update-email/:id",authenticate,updateemail);
+email.delete("/delete-email/:id",authenticate,deleteEmail);
 
 
 

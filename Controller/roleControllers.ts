@@ -3,43 +3,29 @@ import db from "../Config/db.ts";
 import { createauditlog } from "../Utils/auditHelper.ts";
 import { updateroleSchema } from "../Validation/roleValidation.ts";
 
-export const createRole = async(req:Request,res:Response)=>{
-    try{
-        const{role_name,description} = req.body;
+export const createRole = async (req:Request, res:Response) => {
+  try {
+    const { role_name, description, isActive, permissions } = req.body;
 
-        if(!role_name)
-        {
-            return res.status(400).json({message:"Role name is required"});
-        }
+    // 1️⃣ Insert role
+    const [roleId] = await db('role').insert({ role_name, description, isActive }).returning('id');
 
-        const existing = await db('role').where({role_name}).first();
-        let roles,created=false;
-        if(existing)
-        {
-            roles=existing;
-        }
-        else{
-            const[insertedId] = await db('role').insert({
-                role_name,
-                description:description||`${role_name}role`,
+    // 2️⃣ Insert permissions for that role
+    if (permissions && permissions.length > 0) {
+      const rolePermissions = permissions.map((permId: number) => ({
+        roleId,
+        permissionId: permId
+      }));
 
-            })
-            roles = await db('role').where({id:insertedId}).first();
-            created=true;
-        }
-
-        if(!created)
-        {
-            return res.status(400).json({message:"Role already exists"});
-
-        }
-        return res.status(201).json({message:"Role created Successfully",roles});
-    }catch(e)
-    {
-        console.log("Error creating role",e)
-        return res.status(500).json({message:"Server error",e});
+      await db('role_permission').insert(rolePermissions);
+      console.log(rolePermissions)
     }
 
+    res.status(201).json({ message: "Role created successfully!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error creating role" });
+  }
 };
 
 
@@ -142,7 +128,7 @@ export const deleteRole = async (req: Request, res: Response) => {
     const result = await db("role").where({ id }).delete();
     console.log("Delete result:", result);
 
-      const user = req.user; // Assuming middleware sets req.user
+      const user =( req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -154,7 +140,7 @@ export const deleteRole = async (req: Request, res: Response) => {
       `Deleted User ${role.firstname} ${role.lastname}`
     );
 
-    return res.status(200).json({ message: "User deleted successfully" });
+    return res.status(200).json({ message: "Role deleted successfully" });
   } catch (e) {
     console.error("Error deleting user backend:", e);
     return res.status(500).json({
@@ -182,7 +168,7 @@ export const updatedrole = async (req: Request, res: Response) => {
     await db("role").where({ id }).update(updateData);
     
     // console.log("data",user);
-const user = req.user; // Assuming middleware sets req.user
+const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
     await createauditlog(

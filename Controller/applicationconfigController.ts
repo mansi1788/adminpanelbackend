@@ -39,7 +39,7 @@ export const createapplicationconfigController = async (req: Request, res: Respo
     //const user_Id = Array.isArray(user) ? user[0] : user;
     if (!applicationconfig) return res.status(500).json({ message: "applicationconfig creation failed" });
 
-  const user = req.user; // Assuming middleware sets req.user
+  const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -113,7 +113,7 @@ export const getAllapplicationconfig=async(req:Request,res:Response)=>{
       .offset(offset)
       .orderBy("application_config.createdAt", "desc");
 
- const user = req.user; // Assuming middleware sets req.user
+ const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -164,7 +164,7 @@ export const updateapplicationconfig = async (req: Request, res: Response) => {
     await db("application_config").where({ id }).update(updateData);
     // console.log("data",user);
 
- const user = req.user; // Assuming middleware sets req.user
+ const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -199,7 +199,7 @@ export const deleteapplicationconfig = async (req: Request, res: Response) => {
     const result = await db("application_config").where({ id }).delete();
     console.log("Delete result:", result);
 
-     const user = req.user; // Assuming middleware sets req.user
+     const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -209,10 +209,10 @@ export const deleteapplicationconfig = async (req: Request, res: Response) => {
       "Delete_User",
       "applicationconfig",
       id,
-      `Deleted applicationconfig Template `
+      `Deleted applicationconfig `
     );
 
-    return res.status(200).json({ message: "Deleted applicationconfig Template Successfully" });
+    return res.status(200).json({ message: "Application Config deleted successfully" });
   } catch (e) {
     console.error("Error deleting applicationconfig backend:", e);
     return res.status(500).json({

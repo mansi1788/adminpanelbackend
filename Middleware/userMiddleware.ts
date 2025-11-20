@@ -22,7 +22,9 @@ export const authenticate = (req: Request,res: Response,next: NextFunction
 
     console.log( "process.env.JWT_SECRET", process.env.JWT_SECRET);
 
-    const decoded = jwt.verify(token, secret) as { id: number };
+    const decoded = jwt.verify(token, secret) as { id: number;firstname: string;
+  lastname: string; };
+
     (req as any).user = decoded; // now allowed by TS
     next();
   } catch (e) {
@@ -34,9 +36,9 @@ export const authorizePermission = (permissionName: string) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       // means u are not logged in
-      if (!req.user)
+      if ((!req as any).user)
         return res.status(401).json({ message: "Not authenticated" });
-      const userId = req.user.id;
+      const userId = (req as any).user.id;
 
       // check user is in database or not
       const user = await db("roleuser").where({id:userId}).first();

@@ -6,12 +6,13 @@ import db from "../Config/db.ts";
 
 export const createEmailController = async (req: Request, res: Response) => {
   try {
-    const {key,title,subject ,isActive } =req.body;
+    const {key,title,subject,body,isActive } =req.body;
 
     if (
     ! key ||
       !title ||
       !subject ||
+      !body||
       isActive === undefined
     ) {
       return res.status(400).json({ message: "All fields are required" });
@@ -29,22 +30,25 @@ export const createEmailController = async (req: Request, res: Response) => {
         key,
         subject,
         title,
+        body,
         isActive: Boolean(isActive),
         createdAt: new Date(),
         updatedAt: new Date(),
       },
     );
-    console.log("email.iddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",[email.id]);
-
+    
     // Make sure user.id exists
     //const user_Id = Array.isArray(user) ? user[0] : user;
     if (!email) return res.status(500).json({ message: "email creation failed" });
 
-  const user = req.user; // Assuming middleware sets req.user
+  const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
+    console.log("firstname",firstname);
+      console.log("lastname",lastname);
 
     await createauditlog(
+      
       `${firstname} ${lastname}`,
       "CREATE_Email_Template",
       "User",
@@ -69,11 +73,11 @@ export const createEmailController = async (req: Request, res: Response) => {
 export const getAllEmail=async(req:Request,res:Response)=>{
     
   console.log("Inside get controllerssssssss");
-
   try {
-    //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
+    //not req.body beacause it is get request and res.body does not work on get req.
+    //  because the client the send nothing it is taking data from get req.
 
-    const {key,title,subject,isActive } = req.query;
+    const {key,title,subject,body,isActive } = req.query;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
@@ -84,6 +88,7 @@ export const getAllEmail=async(req:Request,res:Response)=>{
       if (key) qb.where("key", "like", `%${key}%`);
       if (title) qb.where("title", "like", `%${title}%`);
       if (subject) qb.where("subject", "like", `%${subject}%`);
+      if(body) qb.where("body","like",`%${body}%`);
      
       if (isActive) {
     if (isActive === "Active") qb.where("isActive", true);
@@ -97,6 +102,7 @@ export const getAllEmail=async(req:Request,res:Response)=>{
         if (key) qb.where("key", "like", `%${key}%`);
         if (title) qb.where("title", "like", `%${title}%`);
         if (subject) qb.where("subject", "like", `%${subject}%`);
+        if(body) qb.where("body","like",`%${body}%`);
         if (isActive) {
   if (isActive === "Active") qb.where("isActive", true);
   else if (isActive === "Inactive") qb.where("isActive", false);
@@ -113,7 +119,9 @@ export const getAllEmail=async(req:Request,res:Response)=>{
       .offset(offset)
       .orderBy("email_template.createdAt", "desc");
 
- const user = req.user; // Assuming middleware sets req.user
+ const user =( req as any).user; // Assuming middleware sets req.user
+  console.log("user",user)
+
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -151,7 +159,7 @@ export const getAllEmail=async(req:Request,res:Response)=>{
 export const updateemail = async (req: Request, res: Response) => {
  
   try {
-    const { key,title,subject, isActive } = req.body;
+    const { key,title,subject,body, isActive } = req.body;
     const id = Number(req.params.id);
 
     const updateData: any = { updatedAt: new Date() };
@@ -159,12 +167,13 @@ export const updateemail = async (req: Request, res: Response) => {
     if (key) updateData.key = key;
     if (title) updateData.title = title;
     if (subject) updateData.subject = subject;
+    if(body) updateData.body = body;
     if (typeof isActive === "boolean") updateData.isActive = isActive;
 
     await db("email_template").where({ id }).update(updateData);
     // console.log("data",user);
 
- const user = req.user; // Assuming middleware sets req.user
+ const user =( req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -199,7 +208,7 @@ export const deleteEmail = async (req: Request, res: Response) => {
     const result = await db("email_template").where({ id }).delete();
     console.log("Delete result:", result);
 
-     const user = req.user; // Assuming middleware sets req.user
+     const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -212,7 +221,7 @@ export const deleteEmail = async (req: Request, res: Response) => {
       `Deleted Email Template `
     );
 
-    return res.status(200).json({ message: "Deleted Email Template Successfully" });
+    return res.status(200).json({ message: "Email Template deleted successsfully" });
   } catch (e) {
     console.error("Error deleting email backend:", e);
     return res.status(500).json({

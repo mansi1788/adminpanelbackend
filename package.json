@@ -7,6 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon",
+"seed": "ts-node ./node_modules/knex/bin/cli.js seed:run --knexfile ./Config/knexfile.ts",
     "knex": "knex --knexfile Config/knexfile.ts",
     "migrate": "knex migrate:latest --knexfile knexfile.ts --esm",
     "rollback": "knex migrate:rollback --knexfile knexfile.ts --esm"

@@ -26,7 +26,8 @@ const config: KnexConfig = {
       directory: "./migrations",
     },
     seeds: {
-      directory: "./seed",
+      directory: "../seeds",
+       extension: "ts",
     },
   },
 };
