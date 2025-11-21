@@ -51,22 +51,20 @@ export const createfaqController = async (req: Request, res: Response) => {
 };
 
 export const getAllfaq = async (req: Request, res: Response) => {
-  console.log("Inside get controllerssssssss");
+  console.log("Inside getAllfaq controller");
 
   try {
-    //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
-
-    const { question, display_order, body, isActive } = req.query;
+    const { question, display_order, body, isActive, sortBy, sortOrder } = req.query;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
 
     const query = db("faq").select("*");
 
+    // Filters
     query.modify((qb) => {
       if (question) qb.where("question", "like", `%${question}%`);
-      if (display_order)
-        qb.where("display_order", "like", `%${display_order}%`);
+      if (display_order) qb.where("display_order", "like", `%${display_order}%`);
       if (body) qb.where("body", "like", `%${body}%`);
       if (isActive) {
         if (isActive === "Active") qb.where("isActive", true);
@@ -74,12 +72,12 @@ export const getAllfaq = async (req: Request, res: Response) => {
       }
     });
 
-    const countquery = db("faq")
+    // Count query for pagination
+    const countQuery = db("faq")
       .clone()
       .modify((qb) => {
         if (question) qb.where("question", "like", `%${question}%`);
-        if (display_order)
-          qb.where("display_order", "like", `%${display_order}%`);
+        if (display_order) qb.where("display_order", "like", `%${display_order}%`);
         if (body) qb.where("body", "like", `%${body}%`);
         if (isActive) {
           if (isActive === "Active") qb.where("isActive", true);
@@ -87,47 +85,47 @@ export const getAllfaq = async (req: Request, res: Response) => {
         }
       });
 
-    const totalUsersResult = await countquery.count("* as count");
+    const totalUsersResult = await countQuery.count("* as count");
     const totalUsers = totalUsersResult[0].count;
+
+    // Dynamic sorting
+    const orderColumn = sortBy ? String(sortBy) : "createdAt"; // default column
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc"; // default desc
 
     const users = await query
       .clone()
       .limit(limit)
       .offset(offset)
-      .orderBy("faq.createdAt", "desc");
+      .orderBy(orderColumn, orderDirection); // ✅ dynamic sorting
 
-    const user =( req as any).user; // Assuming middleware sets req.user
+    const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
     await createauditlog(
       `${firstname} ${lastname}`,
-      "GET_ALL_faq",
-      "faq",
+      "GET_ALL_FAQ",
+      "FAQ",
       0,
-      `View User List`
+      "View FAQ list"
     );
 
     const totalPages = Math.ceil(totalUsers / limit);
-
     const nextPage = page < totalPages ? page + 1 : null;
-    const prevPage = page < totalPages ? page - 1 : null;
+    const prevPage = page > 1 ? page - 1 : null;
 
-    console.log("faq fetched successfully: ", users.length);
+    console.log("FAQ fetched successfully: ", users.length);
     res.status(200).json({
       users,
       totalUsers,
       nextPage,
       prevPage,
-      totalPages: Math.ceil(totalUsers / limit),
+      totalPages,
       currentPage: page,
     });
   } catch (e) {
-    console.error(
-      " Error in getallfaq----------------------------------------------------------:",
-      e
-    );
-    res.status(500).json({ message: "Error ", e });
+    console.error("Error in getAllfaq:", e);
+    res.status(500).json({ message: "Server error", e });
   }
 };
 

@@ -68,88 +68,79 @@ export const createcmsController = async (req: Request, res: Response) => {
 
 
 
-export const getAllcms=async(req:Request,res:Response)=>{
-    
-  console.log("Inside get controllerssssssss");
+export const getAllcms = async (req: Request, res: Response) => {
+  console.log("Inside getAllcms controller");
 
   try {
-    //not req.body beacause it is get request and res.body does not work on get req. because the client the send nothing it is taking data from get req.
-
-    const {key,title,meta_keyword,body,isActive } = req.query;
+    const { key, title, meta_keyword, body, isActive, sortBy, sortOrder } = req.query;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
 
     const query = db("cms").select("*");
 
+    // Filters
     query.modify((qb) => {
       if (key) qb.where("key", "like", `%${key}%`);
       if (title) qb.where("title", "like", `%${title}%`);
       if (meta_keyword) qb.where("meta_keyword", "like", `%${meta_keyword}%`);
-      if(body) qb.where("body","like",`%${body}%`);
-     
-
+      if (body) qb.where("body", "like", `%${body}%`);
       if (isActive) {
-    if (isActive === "Active") qb.where("isActive", true);
-    else if (isActive === "Inactive") qb.where("isActive", false);
-  }
+        if (isActive === "Active") qb.where("isActive", true);
+        else if (isActive === "Inactive") qb.where("isActive", false);
+      }
     });
 
-    const countquery = db("cms")
+    // Count query for pagination
+    const countQuery = db("cms")
       .clone()
       .modify((qb) => {
         if (key) qb.where("key", "like", `%${key}%`);
         if (title) qb.where("title", "like", `%${title}%`);
         if (meta_keyword) qb.where("meta_keyword", "like", `%${meta_keyword}%`);
-        if(body) qb.where("body","like",`%${body}%`);
+        if (body) qb.where("body", "like", `%${body}%`);
         if (isActive) {
-  if (isActive === "Active") qb.where("isActive", true);
-  else if (isActive === "Inactive") qb.where("isActive", false);
-}
-
+          if (isActive === "Active") qb.where("isActive", true);
+          else if (isActive === "Inactive") qb.where("isActive", false);
+        }
       });
 
-    const totalUsersResult = await countquery.count("* as count");
+    const totalUsersResult = await countQuery.count("* as count");
     const totalUsers = totalUsersResult[0].count;
+
+    // Sorting
+    const orderColumn = sortBy ? String(sortBy) : "createdAt"; // default column
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc"; // default desc
 
     const users = await query
       .clone()
       .limit(limit)
       .offset(offset)
-      .orderBy("cms.createdAt", "desc");
+      .orderBy(orderColumn, orderDirection); // ✅ dynamic sorting
 
- const user =( req as any ).user;
-  console.log("user",user) // Assuming middleware sets req.user
+    const user = (req as any).user; // middleware user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
-
-    await createauditlog(  `${firstname} ${lastname}`, "GET_ALL_CMS", "CMS", 0, `View User List`);
+    await createauditlog(`${firstname} ${lastname}`, "GET_ALL_CMS", "CMS", 0, "View User List");
 
     const totalPages = Math.ceil(totalUsers / limit);
-
     const nextPage = page < totalPages ? page + 1 : null;
-    const prevPage = page < totalPages ? page - 1 : null;
+    const prevPage = page > 1 ? page - 1 : null;
 
-    console.log("cms fetched successfully: ", users.length);
     res.status(200).json({
       users,
       totalUsers,
       nextPage,
       prevPage,
-      totalPages: Math.ceil(totalUsers / limit),
+      totalPages,
       currentPage: page,
     });
   } catch (e) {
-    console.error(
-      " Error in getallcms----------------------------------------------------------:",
-      e
-    );
-    res.status(500).json({ message: "Error ", e });
+    console.error("Error in getAllcms:", e);
+    res.status(500).json({ message: "Server error", e });
   }
-
-
-}
+};
 
 
 

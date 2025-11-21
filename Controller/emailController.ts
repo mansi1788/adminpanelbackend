@@ -70,14 +70,10 @@ export const createEmailController = async (req: Request, res: Response) => {
 
 
 
-export const getAllEmail=async(req:Request,res:Response)=>{
-    
+export const getAllEmail = async (req: Request, res: Response) => {
   console.log("Inside get controllerssssssss");
   try {
-    //not req.body beacause it is get request and res.body does not work on get req.
-    //  because the client the send nothing it is taking data from get req.
-
-    const {key,title,subject,body,isActive } = req.query;
+    const { key, title, subject, body, isActive, sortBy, sortOrder } = req.query;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
@@ -88,50 +84,53 @@ export const getAllEmail=async(req:Request,res:Response)=>{
       if (key) qb.where("key", "like", `%${key}%`);
       if (title) qb.where("title", "like", `%${title}%`);
       if (subject) qb.where("subject", "like", `%${subject}%`);
-      if(body) qb.where("body","like",`%${body}%`);
-     
+      if (body) qb.where("body", "like", `%${body}%`);
       if (isActive) {
-    if (isActive === "Active") qb.where("isActive", true);
-    else if (isActive === "Inactive") qb.where("isActive", false);
-  }
+        if (isActive === "Active") qb.where("isActive", true);
+        else if (isActive === "Inactive") qb.where("isActive", false);
+      }
     });
 
-    const countquery = db("email_template")
+    const countQuery = db("email_template")
       .clone()
       .modify((qb) => {
         if (key) qb.where("key", "like", `%${key}%`);
         if (title) qb.where("title", "like", `%${title}%`);
         if (subject) qb.where("subject", "like", `%${subject}%`);
-        if(body) qb.where("body","like",`%${body}%`);
+        if (body) qb.where("body", "like", `%${body}%`);
         if (isActive) {
-  if (isActive === "Active") qb.where("isActive", true);
-  else if (isActive === "Inactive") qb.where("isActive", false);
-}
-
+          if (isActive === "Active") qb.where("isActive", true);
+          else if (isActive === "Inactive") qb.where("isActive", false);
+        }
       });
 
-    const totalUsersResult = await countquery.count("* as count");
+    const totalUsersResult = await countQuery.count("* as count");
     const totalUsers = totalUsersResult[0].count;
 
+    // Determine sorting
+    const orderColumn = sortBy ? String(sortBy) : "createdAt"; // default
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc"; // default desc
+
     const users = await query
-      .clone()
       .limit(limit)
       .offset(offset)
-      .orderBy("email_template.createdAt", "desc");
+      .orderBy(orderColumn, orderDirection);
 
- const user =( req as any).user; // Assuming middleware sets req.user
-  console.log("user",user)
-
+    const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
-
-    await createauditlog(  `${firstname} ${lastname}`, "GET_ALL_EMAIL", "Email", 0, `View User List`);
+    await createauditlog(
+      `${firstname} ${lastname}`,
+      "GET_ALL_EMAIL",
+      "Email",
+      0,
+      `View User List`
+    );
 
     const totalPages = Math.ceil(totalUsers / limit);
-
     const nextPage = page < totalPages ? page + 1 : null;
-    const prevPage = page < totalPages ? page - 1 : null;
+    const prevPage = page > 1 ? page - 1 : null;
 
     console.log("Email fetched successfully: ", users.length);
     res.status(200).json({
@@ -139,19 +138,17 @@ export const getAllEmail=async(req:Request,res:Response)=>{
       totalUsers,
       nextPage,
       prevPage,
-      totalPages: Math.ceil(totalUsers / limit),
+      totalPages,
       currentPage: page,
     });
   } catch (e) {
     console.error(
-      " Error in getallemail----------------------------------------------------------:",
+      "Error in getAllEmail----------------------------------------------------------:",
       e
     );
-    res.status(500).json({ message: "Error ", e });
+    res.status(500).json({ message: "Error", e });
   }
-
-
-}
+};
 
 
 

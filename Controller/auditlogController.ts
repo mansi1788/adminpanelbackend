@@ -3,8 +3,8 @@ import db from "../Config/db.ts";
 
 export const createlog = async (req: Request, res: Response) => {
   try {
-    const { action, entity, entityId, userId, detail} = req.body;
-const createdAt=new Date();
+    const { action, entity, entityId, userId, detail } = req.body;
+    const createdAt = new Date();
     const audit = await db("audit").insert({
       userId,
       detail,
@@ -19,31 +19,55 @@ const createdAt=new Date();
   }
 };
 
-
 export const getlog = async (req: Request, res: Response) => {
   try {
-    // Get page and limit from query params
+    const { userId, action, detail, sortBy, sortOrder } = req.query;
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    // Total records count
-    const [{ count }] = await db("audit").count("id as count");
+    // Base query
+    const query = db("audit").select("userId", "action", "detail", "createdAt");
 
-    // Fetch only the required columns with pagination
-    const logs = await db("audit")
-      .select("userId", "action", "detail", "createdAt")
-      .orderBy("createdAt", "desc")
+    // Filters
+    query.modify((qb) => {
+      if (userId) qb.where("userId", "like", `%${userId}%`);
+      if (action) qb.where("action", "like", `%${action}%`);
+      if (detail) qb.where("detail", "like", `%${detail}%`);
+    });
+
+    // Count query
+    const countQuery = db("audit").clone();
+    countQuery.modify((qb) => {
+      if (userId) qb.where("userId", "like", `%${userId}%`);
+      if (action) qb.where("action", "like", `%${action}%`);
+      if (detail) qb.where("detail", "like", `%${detail}%`);
+    });
+    const totalResult = await countQuery.count("id as count");
+    const total = Number(totalResult[0].count);
+
+    // Sorting
+    const orderColumn = sortBy ? String(sortBy) : "createdAt";
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc";
+
+    // Fetch paginated data
+    const logs = await query
       .limit(limit)
-      .offset(offset);
+      .offset(offset)
+      .orderBy(orderColumn, orderDirection);
+    const totalPages = Math.ceil(total / limit);
+    const nextPage = page < totalPages ? page + 1 : null;
+    const prevPage = page > 1 ? page - 1 : null;
 
     return res.status(200).json({
       message: "Successfully fetched audit logs",
       logs,
-      total: Number(count),
+      total,
       page,
       limit,
-      data: logs,
+      totalPages,
+      nextPage,
+      prevPage,
     });
   } catch (e) {
     console.error("Error fetching audit logs:", e);

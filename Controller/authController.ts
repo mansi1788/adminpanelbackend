@@ -16,8 +16,8 @@ export const register = async (req: Request, res: Response) => {
     console.log("Incoming form-data", req.body);
     console.log("uploaded file", req.file);
 
-    if (req.body.isActive === "true") req.body.isActive = true;
-    else if (req.body.isActive === "false") req.body.isActive = false;
+    if (req.body.isActive === 1) req.body.isActive = true;
+    else if (req.body.isActive === 0) req.body.isActive = false;
 
     await registerSchema.validate(req.body, { abortEarly: false });
 

@@ -17,6 +17,7 @@ export const createRole = async (req:Request, res:Response) => {
         permissionId: permId
       }));
 
+
       await db('role_permission').insert(rolePermissions);
       console.log(rolePermissions)
     }
@@ -31,7 +32,7 @@ export const createRole = async (req:Request, res:Response) => {
 
 export const getAllRoles = async (req: Request, res: Response) => {
   try {
-    const { role_name, isActive,description } = req.query;
+    const { role_name, isActive, description, sortBy, sortOrder } = req.query;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
@@ -40,7 +41,7 @@ export const getAllRoles = async (req: Request, res: Response) => {
     const query = db("role").select("*");
     query.modify((qb) => {
       if (role_name) qb.where("role_name", "like", `%${role_name}%`);
-       if (description) qb.where("description", "like", `%${description}%`);
+      if (description) qb.where("description", "like", `%${description}%`);
       if (isActive) {
         if (isActive === "Active") qb.where("isActive", true);
         else if (isActive === "Inactive") qb.where("isActive", false);
@@ -52,7 +53,7 @@ export const getAllRoles = async (req: Request, res: Response) => {
       .clone()
       .modify((qb) => {
         if (role_name) qb.where("role_name", "like", `%${role_name}%`);
-          if (description) qb.where("description", "like", `%${description}%`);
+        if (description) qb.where("description", "like", `%${description}%`);
         if (isActive) {
           if (isActive === "Active") qb.where("isActive", true);
           else if (isActive === "Inactive") qb.where("isActive", false);
@@ -62,10 +63,12 @@ export const getAllRoles = async (req: Request, res: Response) => {
     const totalRolesResult = await countQuery.count("* as count");
     const totalRoles = totalRolesResult[0].count;
 
-    const roles = await query
-      .limit(limit)
-      .offset(offset)
-      .orderBy("createdAt", "desc");
+    // Determine sorting
+    const orderColumn = sortBy ? String(sortBy) : "createdAt"; // default
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc"; // default desc
+
+    // Apply sorting
+    const roles = await query.limit(limit).offset(offset).orderBy(orderColumn, orderDirection);
 
     const totalPages = Math.ceil(totalRoles / limit);
     const nextPage = page < totalPages ? page + 1 : null;
@@ -85,33 +88,6 @@ export const getAllRoles = async (req: Request, res: Response) => {
   }
 };
 
-
-// export const deleteRoles = async(req:Request,res:Response)=>{
-//     try{
-//         const {id} = req.params;
-//         const deleted = await db('role').where(id).del();
-
-//         if(deleted === 0 )
-//         {
-//             return res.status(404).json({message:"Role not found"})
-//         }
-//         await createauditlog(
-//       .id,
-//       "Delete_User",
-//       "User",
-//       user.id,
-//       `Deleted User ${user.firstname} ${user.lastname}`
-//     );
-//         return res.status(200).json({message:"deleted successfully"})
-
-//     }catch(e)
-//     {
-//         console.log("Error deleting roles",e)
-//         return res.status(500).json({message:"Server error",e})
-
-//     }
-     
-// }
 
 export const deleteRole = async (req: Request, res: Response) => {
   try {

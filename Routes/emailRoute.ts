@@ -10,7 +10,6 @@ email.put("/update-email/:id",authenticate,updateemail);
 email.delete("/delete-email/:id",authenticate,deleteEmail);
 
 
-
 // audit.put("/users/:id", logAction("update_user", "User"), update);
 
 export default email;
