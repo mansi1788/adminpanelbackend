@@ -13,8 +13,18 @@ export const createfaqController = async (req: Request, res: Response) => {
     // Check if user exists
     const existingUser = await db("faq").where({ question }).first();
     if (existingUser)
-      return res.status(400).json({ message: "question already exists" });
+      return res.status(400).json({ message: "Question already exists" });
 
+    const exists = await db("faq")
+  .where({ display_order })
+  .first();
+
+if (exists) {
+  // shift down all >= display_order
+  await db("application_config")
+    .where("display_order", ">=", display_order)
+    .increment("display_order", 1);
+}
     // Create user
     const [faq] = await db("faq").insert({
       question,

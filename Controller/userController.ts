@@ -176,7 +176,8 @@ export const forgetpassword = async (req: Request, res: Response) => {
     const { email, firstname, lastname } = req.body;
     const user = await db("roleuser").where({ email }).first();
     if (!user) {
-      return res.json({ message: "User not found" });
+      console.log("User not found")
+      return res.status(404).json({ message: "User not found" });
     }
 
     const token = crypto.randomBytes(32).toString("hex");
@@ -197,7 +198,7 @@ export const forgetpassword = async (req: Request, res: Response) => {
 
     const resetLink = `http://localhost:3000/reset-password/${token}`;
 
-    console.log(user.firstname)
+    console.log(user.firstname);
     const html = `<p>Hi ${user.firstname} ${user.lastname},</p>
     <p>Click below to reset your password</p>
     <a href ="${resetLink}">${resetLink}</a>`;
@@ -205,7 +206,7 @@ export const forgetpassword = async (req: Request, res: Response) => {
     await sendEmail(email, "Reset Your Password", html);
     res.json({ message: "Password reset Link send to your email" });
   } catch (e) {
-    res.status(500).json({ message: "Error sending resent mail", e });
+    res.status(500).json({ message: "User not found", e });
     console.log(e);
   }
 };

@@ -49,7 +49,7 @@ export const register = async (req: Request, res: Response) => {
     // Check if user exists
     const existingUser = await db("roleuser").where({ email }).first();
     if (existingUser)
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: "User with this email already exists" });
 
 
     // Create user

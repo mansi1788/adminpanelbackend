@@ -20,8 +20,22 @@ export const createapplicationconfigController = async (req: Request, res: Respo
     // Check if user exists
     const existingUser = await db("application_config").where({ key }).first();
     if (existingUser)
-      return res.status(400).json({ message: "key already exists" });
+      return res.status(400).json({ message: "Application Config already exists!" });
 
+  //  const existingdisplay_order = await db("application_config").where({ display_order }).first();
+  //   if (existingdisplay_order)
+  //     return res.status(400).json({ message: "Display order already exists" });
+
+  const exists = await db("application_config")
+  .where({ display_order })
+  .first();
+
+if (exists) {
+  // shift down all >= display_order
+  await db("application_config")
+    .where("display_order", ">=", display_order)
+    .increment("display_order", 1);
+}
 
     // Create user
     const [applicationconfig] = await db("application_config").insert(

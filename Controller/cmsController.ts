@@ -22,7 +22,7 @@ export const createcmsController = async (req: Request, res: Response) => {
     // Check if user exists
     const existingUser = await db("cms").where({ key }).first();
     if (existingUser)
-      return res.status(400).json({ message: "key already exists" });
+    return res.status(400).json({ message: "CMS already exists" });
 
 
     // Create user

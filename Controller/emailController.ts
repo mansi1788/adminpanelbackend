@@ -21,7 +21,7 @@ export const createEmailController = async (req: Request, res: Response) => {
     // Check if user exists
     const existingUser = await db("email_template").where({ key }).first();
     if (existingUser)
-      return res.status(400).json({ message: "key already exists" });
+      return res.status(400).json({ message: "Email Template already exists" });
 
 
     // Create user
@@ -59,7 +59,7 @@ export const createEmailController = async (req: Request, res: Response) => {
   
 
     res.status(201).json({
-      message: "email template registered successfully",
+      message: "Email template registered successfully",
     });
   } catch (e) {
     console.error("Error in email template controller:", e);

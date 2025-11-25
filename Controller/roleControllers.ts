@@ -1,25 +1,32 @@
-import type { Request,Response } from "express";
+import type { Request, Response } from "express";
 import db from "../Config/db.ts";
 import { createauditlog } from "../Utils/auditHelper.ts";
 import { updateroleSchema } from "../Validation/roleValidation.ts";
 
-export const createRole = async (req:Request, res:Response) => {
+export const createRole = async (req: Request, res: Response) => {
   try {
     const { role_name, description, isActive, permissions } = req.body;
 
     // 1️⃣ Insert role
-    const [roleId] = await db('role').insert({ role_name, description, isActive }).returning('id');
+      const existingRole = await db("role").where({ role_name }).first();
+    if (existingRole)
+      return res.status(400).json({ message: "Role already exist" });
+
+
+
+    const [roleId] = await db("role")
+      .insert({ role_name, description, isActive })
+      .returning("id");
 
     // 2️⃣ Insert permissions for that role
     if (permissions && permissions.length > 0) {
       const rolePermissions = permissions.map((permId: number) => ({
         roleId,
-        permissionId: permId
+        permissionId: permId,
       }));
 
-
-      await db('role_permission').insert(rolePermissions);
-      console.log(rolePermissions)
+      await db("role_permission").insert(rolePermissions);
+      console.log(rolePermissions);
     }
 
     res.status(201).json({ message: "Role created successfully!" });
@@ -28,7 +35,6 @@ export const createRole = async (req:Request, res:Response) => {
     res.status(500).json({ message: "Error creating role" });
   }
 };
-
 
 export const getAllRoles = async (req: Request, res: Response) => {
   try {
@@ -68,7 +74,10 @@ export const getAllRoles = async (req: Request, res: Response) => {
     const orderDirection = sortOrder === "asc" ? "asc" : "desc"; // default desc
 
     // Apply sorting
-    const roles = await query.limit(limit).offset(offset).orderBy(orderColumn, orderDirection);
+    const roles = await query
+      .limit(limit)
+      .offset(offset)
+      .orderBy(orderColumn, orderDirection);
 
     const totalPages = Math.ceil(totalRoles / limit);
     const nextPage = page < totalPages ? page + 1 : null;
@@ -88,7 +97,6 @@ export const getAllRoles = async (req: Request, res: Response) => {
   }
 };
 
-
 export const deleteRole = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
@@ -104,7 +112,7 @@ export const deleteRole = async (req: Request, res: Response) => {
     const result = await db("role").where({ id }).delete();
     console.log("Delete result:", result);
 
-      const user =( req as any).user; // Assuming middleware sets req.user
+    const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
 
@@ -126,29 +134,26 @@ export const deleteRole = async (req: Request, res: Response) => {
   }
 };
 
-
-
 export const updatedrole = async (req: Request, res: Response) => {
   await updateroleSchema.validate(req.body, { abortEarly: false });
   try {
-    const {role_name,description, isActive } = req.body;
+    const { role_name, description, isActive } = req.body;
     const id = Number(req.params.id);
 
     const updateData: any = { updatedAt: new Date() };
 
-    
     if (role_name) updateData.role_name = role_name;
     if (description) updateData.description = description;
     if (typeof isActive === "boolean") updateData.isActive = isActive;
 
     await db("role").where({ id }).update(updateData);
-    
+
     // console.log("data",user);
-const user = (req as any).user; // Assuming middleware sets req.user
+    const user = (req as any).user; // Assuming middleware sets req.user
     const firstname = user?.firstname || "Unknown";
     const lastname = user?.lastname || "User";
     await createauditlog(
-       `${firstname} ${lastname}`,
+      `${firstname} ${lastname}`,
       "Update_User",
       "User",
       id,
