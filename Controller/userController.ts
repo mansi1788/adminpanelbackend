@@ -8,18 +8,21 @@ import { updateroleSchema } from "../Validation/roleValidation.ts";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
+
+
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
     const {
-      firstname,
-      lastname,
-      email,
-      roles,
-      phoneno,
-      isActive,
+      firstname = "",
+      lastname = "",
+      email = "",
+      roles = "",
+      phoneno = "",
+      isActive = "",
       sortBy,
       sortOrder,
     } = req.query;
+
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
@@ -27,36 +30,43 @@ export const getAllUsers = async (req: Request, res: Response) => {
     const query = db("roleuser").select("*");
 
     // Filters
-    query.modify((qb) => {
-      if (firstname) qb.where("firstname", firstname);
-      if (lastname) qb.where("lastname", lastname);
-      if (email) qb.where("email", email);
-      if (roles) qb.where("roles", roles);
-      if (phoneno) qb.where("phoneno", phoneno);
+    query.modify((qb: Knex.QueryBuilder) => {
+      // 🔥 FIRSTNAME PARTIAL MATCH
+      if (firstname) {
+        qb.whereILike("firstname", `%${firstname}%`);
+      }
+
+      // 🔥 LASTNAME PARTIAL MATCH
+      if (lastname) {
+        qb.whereILike("lastname", `%${lastname}%`);
+      }
+
+      // email
+      if (email) qb.whereILike("email", `%${email}%`);
+
+      if (roles) qb.whereILike("roles", `%${roles}%`);
+      if (phoneno) qb.whereILike("phoneno", `%${phoneno}%`);
       if (isActive) qb.where("isActive", isActive === "Active");
     });
 
-    // Count for pagination
-    const countquery = db("roleuser")
-      .clone()
-      .modify((qb) => {
-        if (firstname) qb.where("firstname", firstname);
-        if (lastname) qb.where("lastname", lastname);
-        if (email) qb.where("email", email);
-        if (roles) qb.where("roles", roles);
-        if (phoneno) qb.where("phoneno", phoneno);
-        if (isActive) qb.where("isActive", isActive === "Active");
-      });
+    // Count query
+    const countQuery = db("roleuser").modify((qb: Knex.QueryBuilder) => {
+      if (firstname) qb.whereILike("firstname", `%${firstname}%`);
+      if (lastname) qb.whereILike("lastname", `%${lastname}%`);
+      if (email) qb.whereILike("email", `%${email}%`);
+      if (roles) qb.whereILike("roles", `%${roles}%`);
+      if (phoneno) qb.whereILike("phoneno", `%${phoneno}%`);
+      if (isActive) qb.where("isActive", isActive === "Active");
+    });
 
-    const totalUsersResult = await countquery.count("* as count");
+    const totalUsersResult = await countQuery.count("* as count");
     const totalUsers = totalUsersResult[0].count;
 
     // Sorting
-    const orderColumn = sortBy ? String(sortBy) : "createdAt"; // default
-    const orderDirection = sortOrder === "asc" ? "asc" : "desc"; // default desc
+    const orderColumn = sortBy ? String(sortBy) : "createdAt";
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc";
 
     const users = await query
-      .clone()
       .limit(limit)
       .offset(offset)
       .orderBy(orderColumn, orderDirection);
@@ -69,7 +79,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
       "GET_ALL_USERS",
       "User",
       0,
-      `View User List`
+      "View User List"
     );
 
     res.status(200).json({
@@ -85,6 +95,84 @@ export const getAllUsers = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error fetching users", e });
   }
 };
+
+// export const getAllUsers = async (req: Request, res: Response) => {
+//   try {
+//     const {
+//       firstname,
+//       lastname,
+//       email,
+//       roles,
+//       phoneno,
+//       isActive,
+//       sortBy,
+//       sortOrder,
+//     } = req.query;
+//     const page = parseInt(req.query.page as string) || 1;
+//     const limit = parseInt(req.query.limit as string) || 10;
+//     const offset = (page - 1) * limit;
+
+//     const query = db("roleuser").select("*");
+
+//     // Filters
+//     query.modify((qb) => {
+//       if (firstname) qb.where("firstname", firstname);
+//       if (lastname) qb.where("lastname", lastname);
+//       if (email) qb.where("email", email);
+//       if (roles) qb.where("roles", roles);
+//       if (phoneno) qb.where("phoneno", phoneno);
+//       if (isActive) qb.where("isActive", isActive === "Active");
+//     });
+
+//     // Count for pagination
+//     const countquery = db("roleuser")
+//       .clone()
+//       .modify((qb) => {
+//         if (firstname) qb.where("firstname", firstname);
+//         if (lastname) qb.where("lastname", lastname);
+//         if (email) qb.where("email", email);
+//         if (roles) qb.where("roles", roles);
+//         if (phoneno) qb.where("phoneno", phoneno);
+//         if (isActive) qb.where("isActive", isActive === "Active");
+//       });
+
+//     const totalUsersResult = await countquery.count("* as count");
+//     const totalUsers = totalUsersResult[0].count;
+
+//     // Sorting
+//     const orderColumn = sortBy ? String(sortBy) : "createdAt"; // default
+//     const orderDirection = sortOrder === "asc" ? "asc" : "desc"; // default desc
+
+//     const users = await query
+//       .clone()
+//       .limit(limit)
+//       .offset(offset)
+//       .orderBy(orderColumn, orderDirection);
+
+//     const user = (req as any).user;
+//     if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+//     await createauditlog(
+//       `${user.firstname} ${user.lastname}`,
+//       "GET_ALL_USERS",
+//       "User",
+//       0,
+//       `View User List`
+//     );
+
+//     res.status(200).json({
+//       users,
+//       totalUsers,
+//       totalPages: Math.ceil(totalUsers / limit),
+//       currentPage: page,
+//       nextPage: page < Math.ceil(totalUsers / limit) ? page + 1 : null,
+//       prevPage: page > 1 ? page - 1 : null,
+//     });
+//   } catch (e) {
+//     console.error("Error in getAllUsers:", e);
+//     res.status(500).json({ message: "Error fetching users", e });
+//   }
+// };
 
 export const update = async (req: Request, res: Response) => {
   await updateSchema.validate(req.body, { abortEarly: false });
@@ -111,23 +199,31 @@ export const update = async (req: Request, res: Response) => {
 
     await db("roleuser").where({ id }).update(updateData);
     const oldUser = await db("roleuser").where({ id }).first();
-    const first = req.body.firstname || oldUser.firstname;
-    const last = req.body.lastname || oldUser.lastname;
+    // const first = req.body.firstname || oldUser.firstname;
+    // const last = req.body.lastname || oldUser.lastname;
+    const first=req.user.firstname;
+   const last=req.user.lastname;
+
+    const targetUserId = req.params.id;
+
+  // const updatedUserData = await db('roleuser').where({targetUserId}).first();
+  const updatedUserData = await db('roleuser').where({ id }).first();
 
     await createauditlog(
-      `${first} ${last}`,
+      `${ first} ${last}`,
       "Update_User",
       "User",
       id,
-      `User updated: ${[
-        firstname && "name",
-        email && "email",
-        phoneno && "phoneno",
-        photo && "photo",
-        isActive !== undefined && "isActive",
-      ]
-        .filter(Boolean)
-        .join(", ")}`
+      // `User updated: ${[
+      //   firstname && "name",
+      //   email && "email",
+      //   phoneno && "phoneno",
+      //   photo && "photo",
+      //   isActive !== undefined && "isActive",
+      // ]
+      `${updatedUserData.firstname} ${updatedUserData.lastname} is updated successfully`,
+        // .filter(Boolean)
+        // .join(", ")}`
     );
 
     res.status(200).json({ message: "updated successfully", updateData });
