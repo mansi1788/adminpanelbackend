@@ -21,7 +21,7 @@ export const createfaqController = async (req: Request, res: Response) => {
 
 if (exists) {
   // shift down all >= display_order
-  await db("application_config")
+  await db("faq")
     .where("display_order", ">=", display_order)
     .increment("display_order", 1);
 }
