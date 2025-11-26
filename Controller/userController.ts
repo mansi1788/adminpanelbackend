@@ -174,11 +174,70 @@ export const getAllUsers = async (req: Request, res: Response) => {
 //   }
 // };
 
+// export const update = async (req: Request, res: Response) => {
+//   await updateSchema.validate(req.body, { abortEarly: false });
+
+//   try {
+//     const { firstname, lastname, email, phoneno } = req.body;
+//     const id = Number(req.params.id);
+
+//     let isActive;
+//     if (req.body.isActive !== undefined) {
+//       isActive = String(req.body.isActive).toLowerCase() === "true";
+//     }
+
+//     const photo = req.file ? req.file.filename : undefined;
+
+//     const updateData: any = { updatedAt: new Date() };
+
+//     if (firstname) updateData.firstname = firstname;
+//     if (lastname) updateData.lastname = lastname;
+//     if (email) updateData.email = email;
+//     if (phoneno) updateData.phoneno = phoneno;
+//     if (photo) updateData.photo = photo;
+//     if (isActive !== undefined) updateData.isActive = isActive;
+
+//     await db("roleuser").where({ id }).update(updateData);
+//     const oldUser = await db("roleuser").where({ id }).first();
+//     // const first = req.body.firstname || oldUser.firstname;
+//     // const last = req.body.lastname || oldUser.lastname;
+//     const first=req.user.firstname;
+//    const last=req.user.lastname;
+
+//     const targetUserId = req.params.id;
+
+//   // const updatedUserData = await db('roleuser').where({targetUserId}).first();
+//   const updatedUserData = await db('roleuser').where({ id }).first();
+
+//     await createauditlog(
+//       `${ first} ${last}`,
+//       "Update_User",
+//       "User",
+//       id,
+//       // `User updated: ${[
+//       //   firstname && "name",
+//       //   email && "email",
+//       //   phoneno && "phoneno",
+//       //   photo && "photo",
+//       //   isActive !== undefined && "isActive",
+//       // ]
+//       `${updatedUserData.firstname} ${updatedUserData.lastname} is updated successfully`,
+//         // .filter(Boolean)
+//         // .join(", ")}`
+//     );
+
+//     res.status(200).json({ message: "updated successfully", updateData });
+//   } catch (e) {
+//     console.error("Error updating user:", e);
+//     res.status(500).json({ message: "did not update", e });
+//   }
+// };
+
 export const update = async (req: Request, res: Response) => {
   await updateSchema.validate(req.body, { abortEarly: false });
 
   try {
-    const { firstname, lastname, email, phoneno } = req.body;
+    const { firstname, lastname, email, phoneno, roles } = req.body;
     const id = Number(req.params.id);
 
     let isActive;
@@ -194,36 +253,26 @@ export const update = async (req: Request, res: Response) => {
     if (lastname) updateData.lastname = lastname;
     if (email) updateData.email = email;
     if (phoneno) updateData.phoneno = phoneno;
+
+    // ✅ Add role update
+    if (roles) updateData.roles = roles;
+
     if (photo) updateData.photo = photo;
     if (isActive !== undefined) updateData.isActive = isActive;
 
     await db("roleuser").where({ id }).update(updateData);
-    const oldUser = await db("roleuser").where({ id }).first();
-    // const first = req.body.firstname || oldUser.firstname;
-    // const last = req.body.lastname || oldUser.lastname;
-    const first=req.user.firstname;
-   const last=req.user.lastname;
 
-    const targetUserId = req.params.id;
+    const updatedUserData = await db("roleuser").where({ id }).first();
 
-  // const updatedUserData = await db('roleuser').where({targetUserId}).first();
-  const updatedUserData = await db('roleuser').where({ id }).first();
+    const first = req.user.firstname;
+    const last = req.user.lastname;
 
     await createauditlog(
-      `${ first} ${last}`,
+      `${first} ${last}`,
       "Update_User",
       "User",
       id,
-      // `User updated: ${[
-      //   firstname && "name",
-      //   email && "email",
-      //   phoneno && "phoneno",
-      //   photo && "photo",
-      //   isActive !== undefined && "isActive",
-      // ]
-      `${updatedUserData.firstname} ${updatedUserData.lastname} is updated successfully`,
-        // .filter(Boolean)
-        // .join(", ")}`
+      `${updatedUserData.firstname} ${updatedUserData.lastname} is updated successfully`
     );
 
     res.status(200).json({ message: "updated successfully", updateData });
